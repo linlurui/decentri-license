@@ -1,0 +1,21 @@
+{
+  "token_id": "67802c972d8679c1b22d525b8abe1d98",
+  "license_code": "ED-2026-005-PEIZAU",
+  "holder_device_id": "",
+  "issue_time": 1768473369,
+  "expire_time": 0,
+  "signature": "dULw3cx8tDA7AeW57BbypssMw6WAiG95oIqlqtBRToNWxU0fpnp5ppxyzRVD7vu7a/sYEvkfr5OGvilVJN9u8itoyPm2e3VKjrGIVEo0utSs+kBLO/A5nafVPvdryIxJoJmV5XJci4KCnevAajecYGtA8gDX8j6J42csxH8D0T+IW/374eLs5PCfUDDkDxV6pzLunKpOiV7tfLwEpg61V9VZRU1SmQuQWFN69k7ezC4XwiZgJ3PnbZw1FLtEtpzY2rs79EwoRzo06FFx3XC8QsZcz+6Vfo+uTYIV2REE3AEb1dYUTJSp//Gd6OyG78tXjvtnVP1Tfv2IiSm2FKH7rA==",
+  "app_id": "test",
+  "environment_hash": "",
+  "root_signature": "NVbS4jVLX4IB7AzxUaIK1kuC2PDHEOfPyBEf1NeMgf0S4FCqH9/zMk9Ik4z1J+phP6tSC+uiU5IGFWvc5zE6e9cbOy7hfaBAFm4RJPfohxYFUW1Mr4G56zLiIDYGhu4QUHnvrN0k1fjMmW6lM1ghGrMuE5t3lIRx84A/bSAFMV5BvCMrfAM38X+4RD5l9qP7Vv4T97N9PrBnwJFuuPVAr2TttLOw4wuiehASZSGlWzdabo2q53cHWaM6ckJ+XTKz5Ro3bU8jiuCHxlE3/S9VffFZVr8y8i7gyxdedv4xA+2POCTTchdloGVt9nrh/lzpMhCiWsMxmLxIbN1SpWYzXw==",
+  "state_index": 0,
+  "prev_state_hash": "",
+  "state_payload": "{}",
+  "state_signature": "",
+  "device_info": {
+    "fingerprint": "",
+    "public_key": "",
+    "signature": ""
+  },
+  "alg": "Ed25519"
+}

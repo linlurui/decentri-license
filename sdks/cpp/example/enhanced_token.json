@@ -1,0 +1,38 @@
+{
+  "token_id": "LIC-001",
+  "license_code": "PROD-A",
+  "holder_device_id": "",
+  "issue_time": 1704067200,
+  "expire_time": 1735689600,
+  "signature": "sig1...",
+  "alg": "Ed25519",
+  "app_id": "my-app",
+  "state_index": 0,
+  "prev_state_hash": "",
+  "state_payload": "{\"max_calls\": 1000}",
+  "state_signature": "state_sig1...",
+  "device_info": {
+    "fingerprint": "abc123...",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAUZ3F1i8q5UZRWbm6xvD1zJxXu5MfQg2HxWodZyZu5jY=\n-----END PUBLIC KEY-----",
+    "signature": "device_sig1..."
+  },
+  "usage_chain": [
+    {
+      "seq": 1,
+      "time": "2024-01-01T10:00:00Z",
+      "action": "api_call",
+      "params": "{\"function\": \"process_image\"}",
+      "hash_prev": "0",
+      "signature": "usage_sig1..."
+    },
+    {
+      "seq": 2,
+      "time": "2024-01-01T10:05:00Z",
+      "action": "api_call",
+      "params": "{\"function\": \"export_pdf\"}",
+      "hash_prev": "hash_of_seq1",
+      "signature": "usage_sig2..."
+    }
+  ],
+  "current_signature": "current_sig2..."
+}

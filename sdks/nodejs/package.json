@@ -1,0 +1,21 @@
+{
+  "name": "@decentrilicense/decenlicense",
+  "version": "1.0.0",
+  "description": "DecentriLicense Node.js Binding",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "license",
+    "decentralized",
+    "decenlicense"
+  ],
+  "author": "DecentriLicense",
+  "license": "MIT",
+  "dependencies": {
+    "node-addon-api": "^7.1.1"
+  },
+  "devDependencies": {
+  }
+}

@@ -1,0 +1,8 @@
+README.md
+setup.py
+decenlicense/__init__.py
+decenlicense/client.py
+decenlicense.egg-info/PKG-INFO
+decenlicense.egg-info/SOURCES.txt
+decenlicense.egg-info/dependency_links.txt
+decenlicense.egg-info/top_level.txt
