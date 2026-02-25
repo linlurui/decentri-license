@@ -22,7 +22,7 @@ target_include_directories(decenlicense_jni
 # Link with the core library and JNI
 target_link_libraries(decenlicense_jni
     PRIVATE
-        /Volumes/project/decentri-license-issuer/dl-core/build/libdecentrilicense.dylib
+        /Volumes/project/decentri-license/dl-core/build/libdecentrilicense.dylib
         ${JNI_LIBRARIES}
 )
 

@@ -63,7 +63,7 @@ export DYLIB_PATH_OVERRIDE=""
 
 **更新后：**
 ```bash
-export DYLIB_PATH_OVERRIDE="/Users/lamrocky/project/decentri-license-issuer/dl-core/build"
+export DYLIB_PATH_OVERRIDE="/Users/lamrocky/project/decentri-license/dl-core/build"
 ```
 
 ## 🚀 用户使用方式

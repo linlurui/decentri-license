@@ -76,7 +76,7 @@ ls -la dl-core/build/libdecentrilicense.dylib
 #### 启动向导
 
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/go/validation_wizard
+cd /Volumes/project/decentri-license/sdks/go/validation_wizard
 ./validation_wizard
 ```
 

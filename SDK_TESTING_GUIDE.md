@@ -39,7 +39,7 @@ echo "7" | <运行命令>
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/go
+cd /Volumes/project/decentri-license/sdks/go
 ```
 
 ### 编译（如果需要）
@@ -70,7 +70,7 @@ echo "7" | ./validation_wizard
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/python
+cd /Volumes/project/decentri-license/sdks/python
 ```
 
 ### 运行（无需编译）
@@ -93,7 +93,7 @@ echo "7" | python3 validation_wizard.py
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/nodejs
+cd /Volumes/project/decentri-license/sdks/nodejs
 ```
 
 ### 运行（无需编译）
@@ -116,7 +116,7 @@ echo "7" | node validation_wizard.js
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/java
+cd /Volumes/project/decentri-license/sdks/java
 ```
 
 ### 编译
@@ -152,7 +152,7 @@ echo "7" | mvn exec:java -Dexec.mainClass="com.decentrilicense.ValidationWizard"
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/php
+cd /Volumes/project/decentri-license/sdks/php
 ```
 
 ### 运行（无需编译）
@@ -176,7 +176,7 @@ echo "7" | php validation_wizard.php
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/c
+cd /Volumes/project/decentri-license/sdks/c
 ```
 
 ### 编译
@@ -217,7 +217,7 @@ echo "7" | LD_LIBRARY_PATH=./lib:$LD_LIBRARY_PATH ./validation_wizard
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/cpp/example
+cd /Volumes/project/decentri-license/sdks/cpp/example
 ```
 
 ### 编译
@@ -260,7 +260,7 @@ echo "7" | LD_LIBRARY_PATH=../lib:$LD_LIBRARY_PATH ./validation_wizard
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/rust
+cd /Volumes/project/decentri-license/sdks/rust
 ```
 
 ### 编译
@@ -301,7 +301,7 @@ echo "7" | LD_LIBRARY_PATH=./lib:$LD_LIBRARY_PATH cargo run --example validation
 
 ### 目录
 ```bash
-cd /Volumes/project/decentri-license-issuer/sdks/csharp
+cd /Volumes/project/decentri-license/sdks/csharp
 ```
 
 ### 编译
@@ -367,39 +367,39 @@ echo "7" | dotnet run --project DecentriLicense
 
 ```bash
 # 1. Go SDK
-cd /Volumes/project/decentri-license-issuer/sdks/go
+cd /Volumes/project/decentri-license/sdks/go
 echo "7" | ./validation_wizard
 
 # 2. Python SDK
-cd /Volumes/project/decentri-license-issuer/sdks/python
+cd /Volumes/project/decentri-license/sdks/python
 echo "7" | python3 validation_wizard.py
 
 # 3. Node.js SDK
-cd /Volumes/project/decentri-license-issuer/sdks/nodejs
+cd /Volumes/project/decentri-license/sdks/nodejs
 echo "7" | node validation_wizard.js
 
 # 4. Java SDK
-cd /Volumes/project/decentri-license-issuer/sdks/java
+cd /Volumes/project/decentri-license/sdks/java
 echo "7" | mvn exec:java -Dexec.mainClass="com.decentrilicense.ValidationWizard"
 
 # 5. PHP SDK
-cd /Volumes/project/decentri-license-issuer/sdks/php
+cd /Volumes/project/decentri-license/sdks/php
 echo "7" | php validation_wizard.php
 
 # 6. C SDK
-cd /Volumes/project/decentri-license-issuer/sdks/c
+cd /Volumes/project/decentri-license/sdks/c
 echo "7" | DYLD_LIBRARY_PATH=./lib:$DYLD_LIBRARY_PATH ./validation_wizard
 
 # 7. C++ SDK
-cd /Volumes/project/decentri-license-issuer/sdks/cpp/example
+cd /Volumes/project/decentri-license/sdks/cpp/example
 echo "7" | DYLD_LIBRARY_PATH=../lib:$DYLD_LIBRARY_PATH ./validation_wizard
 
 # 8. Rust SDK
-cd /Volumes/project/decentri-license-issuer/sdks/rust
+cd /Volumes/project/decentri-license/sdks/rust
 echo "7" | DYLD_LIBRARY_PATH=./lib:$DYLD_LIBRARY_PATH cargo run --example validation_wizard
 
 # 9. C# SDK (可选，无测试环境)
-cd /Volumes/project/decentri-license-issuer/sdks/csharp
+cd /Volumes/project/decentri-license/sdks/csharp
 echo "7" | dotnet run --project DecentriLicense
 ```
 
