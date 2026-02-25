@@ -488,7 +488,45 @@ DL_ErrorCode dl_client_offline_verify_current_token(DL_Client* client, DL_Verifi
             set_ok(result);
         }
 
-        set_ok(result);
+        // CRITICAL: Verify token signature is required
+        // This prevents fake tokens with invalid signatures from being accepted
+        // CRITICAL: Verify token signature is required
+        // (expire_time is intentionally excluded - matches official SDK)
+        if (client->token.signature.empty()) {
+            set_err(result, "token signature is required");
+            return DL_ERROR_SUCCESS;
+        }
+        
+        // Build signature data using OFFICIAL format: token_id|app_id|holder_device_id|license_code|issue_time
+        std::string sig_data = client->token.token_id + "|" +
+                               client->token.app_id + "|" +
+                               client->token.holder_device_id + "|" +
+                               client->token.license_code + "|" +
+                               std::to_string(client->token.issue_time);
+        
+        // Verify signature based on algorithm type
+        bool sig_ok = false;
+        std::string alg = client->token.alg;
+        
+        try {
+            if (alg == "RSA" || alg.empty()) {
+                sig_ok = CryptoUtils::verify_signature(sig_data, client->token.signature, client->product_public_key_pem);
+            } else if (alg == "Ed25519") {
+                sig_ok = CryptoUtils::verify_ed25519_signature(sig_data, client->token.signature, client->product_public_key_pem);
+            } else if (alg == "SM2") {
+                sig_ok = CryptoUtils::verify_sm2_signature(sig_data, client->token.signature, client->product_public_key_pem);
+            } else {
+                sig_ok = CryptoUtils::verify_ed25519_signature(sig_data, client->token.signature, client->product_public_key_pem);
+            }
+        } catch (...) {
+            sig_ok = false;
+        }
+        
+        
+        if (!sig_ok) {
+            set_err(result, "token signature verification failed");
+            return DL_ERROR_SUCCESS;
+        }
         return DL_ERROR_SUCCESS;
     } catch (const std::exception& e) {
         set_err(result, e.what());

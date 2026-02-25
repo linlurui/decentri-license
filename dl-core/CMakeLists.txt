@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Debug output disabled for production
 # add_definitions(-DDECENTRILICENSE_DEBUG)
 
+# Enable signature verification
+
 # Find required packages
 find_package(OpenSSL REQUIRED)
 find_package(CURL REQUIRED)
