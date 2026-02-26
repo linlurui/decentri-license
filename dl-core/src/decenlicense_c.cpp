@@ -169,16 +169,15 @@ static uint64_t extract_json_u64(const std::string& json, const std::string& key
 }
 
 static bool is_encrypted_token_format(const std::string& input) {
+    // 真正的加密 token 格式是 ciphertext_base64url|nonce_base64url
+    // 只有两个字段，用 | 分隔
+    // 检查是否只有两个部分，且没有其他特殊字符
     size_t sep = input.find('|');
-    if (sep == std::string::npos) {
-        return false;
-    }
-    if (sep == 0 || sep + 1 >= input.size()) {
+    if (sep == std::string::npos || sep == 0 || sep + 1 >= input.size()) {
         return false;
     }
     return input.find('|', sep + 1) == std::string::npos;
 }
-
 static bool split_product_public_key_file(const std::string& file_content, std::string* out_pem, std::string* out_root_sig) {
     if (!out_pem || !out_root_sig) {
         return false;
