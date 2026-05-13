@@ -2,6 +2,7 @@
 #include "decentrilicense/environment_checker.hpp"
 #include <iostream>
 #include <thread>
+#include <mutex>
 #include <chrono>
 #include <cstdlib>
 #include <cstdio>

@@ -3,6 +3,7 @@
 #include "decentrilicense/root_key.hpp"
 #include <sstream>
 #include <chrono>
+#include <mutex>
 #include <random>
 #include <iomanip>
 #include <algorithm>
@@ -308,12 +309,14 @@ Token TokenManager::generate_token(const std::string& holder_device_id,
     token.token_id = generate_token_id();
     token.holder_device_id = holder_device_id;
     token.license_code = license_code;
-    
+
     auto now = std::chrono::system_clock::now();
     token.issue_time = std::chrono::duration_cast<std::chrono::seconds>(
         now.time_since_epoch()).count();
+    // Convert hours to seconds to avoid precision issues on Windows
+    auto validity_seconds = std::chrono::seconds(validity_hours * 3600);
     token.expire_time = std::chrono::duration_cast<std::chrono::seconds>(
-        (now + std::chrono::hours(validity_hours)).time_since_epoch()).count();
+        (now + validity_seconds).time_since_epoch()).count();
     
     // Set algorithm
     switch (algorithm) {
@@ -746,21 +749,35 @@ bool TokenManager::verify_token_trust_chain(const Token& token) const {
         std::cerr << std::dec << std::endl;
 #endif
         
-        // ARCHITECTURE CHANGE: dl-core does NOT verify license_public_key directly.
-        // License public key verification is handled by SDK during activation.
-        // dl-core only verifies the product public key via shadow token mechanism in dl-issuer.
+        // Verify root signature over the license/product public key
+        // root_signature = Root_CA_sign(product_public_key_PEM)
+        // This proves the product public key was authorized by the root CA
+        if (token.license_public_key.empty() || token.root_signature.empty()) {
 #if DECENTRILICENSE_DEBUG
-        std::cerr << "dl-core debug: license_public_key verification delegated to SDK activation" << std::endl;
+            std::cerr << "dl-core debug: missing license_public_key or root_signature" << std::endl;
 #endif
+            EVP_PKEY_free(root_pkey);
+            return false;
+        }
 
-        // Skip the root signature verification in dl-core - this creates confusion
-        // The actual product key verification happens via shadow token in dl-issuer
+        // The root signature is over the product public key PEM content
+        const std::string& data_to_verify = token.license_public_key;
+        const std::string& root_sig_b64 = token.root_signature;
+
+        bool sig_ok = false;
+        try {
+            // Root key is RSA, verify using RSA+SHA256
+            sig_ok = CryptoUtils::verify_signature(data_to_verify, root_sig_b64, decentrilicense::ROOT_PUBLIC_KEY);
+        } catch (...) {
+            sig_ok = false;
+        }
+
 #if DECENTRILICENSE_DEBUG
-        std::cerr << "dl-core debug: root signature verification skipped - using shadow token approach only" << std::endl;
+        std::cerr << "dl-core debug: root signature verification result: " << (sig_ok ? "VALID" : "INVALID") << std::endl;
 #endif
 
         EVP_PKEY_free(root_pkey);
-        return true; // Success - no direct verification needed
+        return sig_ok;
     } catch (const std::exception& e) {
         return false;
     }

@@ -72,7 +72,7 @@ class DecentriLicenseClient:
     
     def activate(self) -> dict:
         """
-        Activate the license.
+        Activate the license (may require network/P2P).
         
         Returns:
             A dictionary with activation result information
@@ -90,8 +90,130 @@ class DecentriLicenseClient:
         
         return {
             'success': bool(result.success),
-            'message': result.message.decode('utf-8') if result.message else '',
-            'token': result.token  # This would need further processing
+            'message': result.message.decode('utf-8').rstrip('\x00') if result.message else '',
+        }
+
+    def activate_with_token(self, token_string: str) -> dict:
+        """
+        Activate the license with an offline token string.
+        
+        This imports the token and then activates it in one call,
+        equivalent to Go's ActivateWithToken.
+        
+        Args:
+            token_string: The token string (encrypted or JSON format)
+            
+        Returns:
+            A dictionary with activation result information
+            
+        Raises:
+            LicenseError: If the client is not initialized or activation fails
+        """
+        if not self._initialized:
+            raise LicenseError("Client not initialized")
+        
+        result = DL_ActivationResult()
+        error_code = dl_client_activate_with_token(
+            self._client,
+            token_string.encode('utf-8'),
+            ctypes.byref(result)
+        )
+        if error_code != DL_ERROR_SUCCESS:
+            raise LicenseError(f"Activate with token failed with error code: {error_code}")
+        
+        if not bool(result.success):
+            msg = result.message.decode('utf-8').rstrip('\x00') if result.message else 'Unknown error'
+            raise LicenseError(f"Activation failed: {msg}")
+        
+        return {
+            'success': True,
+            'message': result.message.decode('utf-8').rstrip('\x00') if result.message else '',
+        }
+
+    def validate_token(self, token_string: str) -> dict:
+        """
+        Validate a token string without activating it.
+        
+        This is the standard offline validation flow:
+        1. Import the token into the client
+        2. Verify the imported token offline
+        
+        Equivalent to Go's ValidateToken method.
+        
+        Args:
+            token_string: The token string (encrypted, raw, or JSON format)
+            
+        Returns:
+            A dictionary with 'valid' (bool) and 'error_message' (str)
+            
+        Raises:
+            LicenseError: If the client is not initialized or import fails
+        """
+        if not self._initialized:
+            raise LicenseError("Client not initialized")
+        
+        # Step 1: Import the token
+        error_code = dl_client_import_token(self._client, token_string.encode('utf-8'))
+        if error_code != DL_ERROR_SUCCESS:
+            raise LicenseError(f"Import token failed with error code: {error_code}")
+        
+        # Step 2: Verify the imported token offline
+        result = DL_VerificationResult()
+        error_code = dl_client_offline_verify_current_token(self._client, ctypes.byref(result))
+        if error_code != DL_ERROR_SUCCESS:
+            raise LicenseError(f"Verify token failed with error code: {error_code}")
+        
+        return {
+            'valid': bool(result.valid),
+            'error_message': result.error_message.decode('utf-8').rstrip('\x00'),
+        }
+
+    def verify_token_trust_chain(self, token: dict, root_public_key_pem: str) -> dict:
+        """
+        Verify a token using the trust chain model.
+        
+        This verifies:
+        1. The root signature of the license public key using the root public key
+        2. The token signature using the verified license public key
+        
+        Args:
+            token: Token dictionary (from get_current_token() or parsed JSON)
+            root_public_key_pem: Root public key PEM content
+            
+        Returns:
+            A dictionary with 'valid' (bool) and 'error_message' (str)
+            
+        Raises:
+            LicenseError: If the client is not initialized or verification fails
+        """
+        if not self._initialized:
+            raise LicenseError("Client not initialized")
+        
+        # Build DL_Token struct from dict
+        c_token = DL_Token()
+        c_token.token_id = token.get('token_id', '').encode('utf-8')[:127]
+        c_token.holder_device_id = token.get('holder_device_id', '').encode('utf-8')[:255]
+        c_token.issue_time = token.get('issue_time', 0)
+        c_token.expire_time = token.get('expire_time', 0)
+        c_token.signature = token.get('signature', '').encode('utf-8')[:511]
+        c_token.license_public_key = token.get('license_public_key', '').encode('utf-8')[:1023]
+        c_token.root_signature = token.get('root_signature', '').encode('utf-8')[:511]
+        c_token.app_id = token.get('app_id', '').encode('utf-8')[:127]
+        c_token.license_code = token.get('license_code', '').encode('utf-8')[:127]
+        
+        result = DL_VerificationResult()
+        error_code = dl_client_verify_token_trust_chain(
+            self._client,
+            ctypes.byref(c_token),
+            root_public_key_pem.encode('utf-8'),
+            ctypes.byref(result)
+        )
+        if error_code != DL_ERROR_SUCCESS:
+            raise LicenseError(f"Trust chain verification failed with error code: {error_code}")
+        
+        return {
+            'valid': bool(result.valid),
+            'error_message': result.error_message.decode('utf-8').rstrip('\x00'),
         }
 
     def set_product_public_key(self, product_public_key_file_content: str) -> None:
@@ -283,6 +405,42 @@ class DecentriLicenseClient:
         }
         return state_map.get(state, 'UNKNOWN')
     
+    def get_state_payload(self) -> str:
+        """Get plaintext state_payload (automatically decrypted from SEK if applicable)."""
+        if not self._initialized:
+            raise LicenseError("Client not initialized")
+        buf = ctypes.create_string_buffer(65536)
+        rc = dl_client_get_state_payload(self._client, ctypes.cast(buf, ctypes.c_void_p), ctypes.sizeof(buf))
+        if rc != DL_ERROR_SUCCESS:
+            raise LicenseError(f"Get state payload failed with error code: {rc}")
+        return buf.value.decode('utf-8')
+
+    def add_recovery_channel(self, password: str) -> dict:
+        """Add recovery channel (password/mnemonic) to wrap SEK for migration/recovery."""
+        if not self._initialized:
+            raise LicenseError("Client not initialized")
+        vr = DL_VerificationResult()
+        rc = dl_client_add_recovery_channel(self._client, password.encode('utf-8'), ctypes.byref(vr))
+        if rc != DL_ERROR_SUCCESS:
+            raise LicenseError(f"Add recovery channel failed with error code: {rc}")
+        return {
+            'valid': bool(vr.valid),
+            'error_message': vr.error_message.decode('utf-8').rstrip('\x00'),
+        }
+
+    def remove_recovery_channel(self) -> dict:
+        """Remove recovery channel (clears password-encrypted SEK)."""
+        if not self._initialized:
+            raise LicenseError("Client not initialized")
+        vr = DL_VerificationResult()
+        rc = dl_client_remove_recovery_channel(self._client, ctypes.byref(vr))
+        if rc != DL_ERROR_SUCCESS:
+            raise LicenseError(f"Remove recovery channel failed with error code: {rc}")
+        return {
+            'valid': bool(vr.valid),
+            'error_message': vr.error_message.decode('utf-8').rstrip('\x00'),
+        }
+
     def shutdown(self) -> None:
         """
         Shutdown the client and release resources.

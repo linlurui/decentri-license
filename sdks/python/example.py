@@ -3,10 +3,12 @@
 DecentriLicense Python SDK Example
 ================================
 
-This example demonstrates how to use the DecentriLicense Python SDK.
+This example demonstrates how to use the DecentriLicense Python SDK
+for both online (P2P) and offline token validation flows.
 """
 
 import sys
+import os
 import time
 from decenlicense import DecentriLicenseClient, LicenseError
 
@@ -35,14 +37,8 @@ def main():
             print("    Initialization successful!")
             print()
             
-            # Activate the license
-            print("[2] Activating license...")
-            print("    Broadcasting discovery on LAN...")
-            print("    Waiting for peers and election...")
-            print()
-            
-            # Note: In a real implementation, this would attempt to activate
-            # For this example, we'll just show the interface
+            # ── Online activation (P2P) ──────────────────────────────
+            print("[2] Activating license (P2P)...")
             try:
                 result = client.activate()
                 print(f"    Success: {result['success']}")
@@ -51,14 +47,38 @@ def main():
                 print(f"    Activation failed: {e}")
             print()
             
-            # Check activation status
-            print("[3] Current status:")
+            # ── Offline token validation ─────────────────────────────
+            print("[3] Offline token validation (validate_token)...")
+            print("    This validates a token without activating it.")
+            print("    Flow: import_token → offline_verify_current_token")
+            # Example: validate an encrypted token string
+            # token_str = "ciphertext_base64url|nonce_base64url"
+            # result = client.validate_token(token_str)
+            # print(f"    Valid: {result['valid']}")
+            # print(f"    Error: {result['error_message']}")
+            print("    (See comprehensive_validator.py for full example)")
+            print()
+            
+            # ── Activate with offline token ──────────────────────────
+            print("[4] Activate with offline token (activate_with_token)...")
+            print("    This imports and activates a token in one call.")
+            # Example: activate with a token string
+            # try:
+            #     result = client.activate_with_token(token_str)
+            #     print(f"    Success: {result['success']}")
+            # except LicenseError as e:
+            #     print(f"    Failed: {e}")
+            print("    (See validation_wizard.py for full example)")
+            print()
+            
+            # ── Check activation status ──────────────────────────────
+            print("[5] Current status:")
             print(f"    Activated: {client.is_activated()}")
             print(f"    Device State: {client.get_device_state()}")
             print()
             
-            # Get current token if available
-            print("[4] Current token:")
+            # ── Get current token ────────────────────────────────────
+            print("[6] Current token:")
             token = client.get_current_token()
             if token:
                 print(f"    Token ID: {token['token_id']}")
@@ -68,6 +88,21 @@ def main():
                 print("    No token available")
             print()
             
+            # ── Get detailed status ──────────────────────────────────
+            print("[7] Detailed status:")
+            try:
+                status = client.get_status()
+                print(f"    Has Token: {status['has_token']}")
+                print(f"    Is Activated: {status['is_activated']}")
+                print(f"    Token ID: {status['token_id']}")
+                print(f"    Holder Device: {status['holder_device_id']}")
+                print(f"    App ID: {status['app_id']}")
+                print(f"    License Code: {status['license_code']}")
+                print(f"    State Index: {status['state_index']}")
+            except LicenseError as e:
+                print(f"    Status query failed: {e}")
+            print()
+            
     except LicenseError as e:
         print(f"License error: {e}")
         return 1
@@ -75,7 +110,7 @@ def main():
         print(f"Unexpected error: {e}")
         return 1
     
-    print("[5] Example completed successfully!")
+    print("[8] Example completed successfully!")
     return 0
 
 

@@ -1,0 +1,5 @@
+module CDecentriLicense {
+    header "decenlicense_c.h"
+    link "decentrilicense"
+    export *
+}

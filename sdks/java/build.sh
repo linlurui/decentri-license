@@ -3,9 +3,12 @@
 # Build script for DecentriLicense Java binding
 echo "Building DecentriLicense Java binding..."
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+GSON_JAR="$SCRIPT_DIR/lib/gson-2.10.1.jar"
+
 # Compile Java sources
 mkdir -p target/classes
-javac -d target/classes \
+javac -cp "$GSON_JAR" -d target/classes \
   src/main/java/com/decentrilicense/ActivationResult.java \
   src/main/java/com/decentrilicense/DecentriLicenseClient.java \
   src/main/java/com/decentrilicense/DeviceState.java \
@@ -18,7 +21,7 @@ javac -d target/classes \
 
 # Compile smoke test (no Maven/JUnit required)
 mkdir -p target/test-classes
-javac -cp target/classes -d target/test-classes tests/ApiImportSmokeTest.java
+javac -cp "target/classes:$GSON_JAR" -d target/test-classes tests/ApiImportSmokeTest.java
 
 # Create JAR file
 jar cf target/decenlicense-1.0.0.jar -C target/classes .

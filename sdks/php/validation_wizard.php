@@ -517,6 +517,25 @@ function verifyActivatedTokenWizard() {
         return;
     }
 
+    // 设置产品公钥（验证前必须设置）
+    $productKeyPath = $GLOBALS['selected_product_key_path'];
+    if (empty($productKeyPath)) {
+        $productKeyPath = findProductPublicKey();
+    }
+    if (!empty($productKeyPath)) {
+        try {
+            $productKeyData = file_get_contents($productKeyPath);
+            $client->setProductPublicKey($productKeyData);
+            echo "✅ 产品公钥设置成功\n";
+        } catch (Exception $e) {
+            echo "❌ 设置产品公钥失败: " . $e->getMessage() . "\n";
+            return;
+        }
+    } else {
+        echo "❌ 未找到产品公钥文件，无法验证\n";
+        return;
+    }
+
     // 检查选择的令牌是否是当前激活的令牌
     try {
         $status = $client->getStatus();

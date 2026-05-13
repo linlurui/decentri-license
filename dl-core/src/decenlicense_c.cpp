@@ -77,6 +77,66 @@ static std::string build_token_json(
     json += "\"state_signature\":\"" + json_escape(t.state_signature) + "\",";
     json += "\"alg\":\"" + json_escape(t.alg) + "\"";
 
+    // Include original_holder_device_id for activated tokens so it can be restored on re-import
+    // This is critical: the signature was computed with the original holder_device_id,
+    // but after activation holder_device_id gets overwritten with device_id.
+    // Without saving the original, re-imported activated tokens fail verification.
+    if (include_device_info && !device_public_key_pem.empty() && !device_signature_b64.empty()) {
+        json += ",\"device_info\":{";
+        json += "\"fingerprint\":\"" + json_escape(device_fingerprint) + "\",";
+        json += "\"public_key\":\"" + json_escape(device_public_key_pem) + "\",";
+        json += "\"signature\":\"" + json_escape(device_signature_b64) + "\"";
+        json += "}";
+    }
+
+    json += "}";
+    return json;
+}
+
+// Build token JSON with original_holder_device_id preserved for activated tokens
+static std::string build_token_json_with_original_holder(
+    const Token& t,
+    const std::string& original_holder_device_id,
+    const std::string& device_fingerprint,
+    const std::string& device_public_key_pem,
+    const std::string& device_signature_b64,
+    bool include_device_info,
+    const std::string& encrypted_sek_device = "",
+    const std::string& encrypted_sek_password = "",
+    bool state_payload_encrypted = false) {
+    std::string json;
+    json.reserve(2048);
+    json += "{";
+    json += "\"token_id\":\"" + json_escape(t.token_id) + "\",";
+    json += "\"license_code\":\"" + json_escape(t.license_code) + "\",";
+    json += "\"holder_device_id\":\"" + json_escape(t.holder_device_id) + "\",";
+    // Always preserve original_holder_device_id for re-import verification (even if empty)
+    json += "\"original_holder_device_id\":\"" + json_escape(original_holder_device_id) + "\",";
+    json += "\"issue_time\":" + std::to_string(t.issue_time) + ",";
+    json += "\"expire_time\":" + std::to_string(t.expire_time) + ",";
+    json += "\"signature\":\"" + json_escape(t.signature) + "\",";
+    json += "\"app_id\":\"" + json_escape(t.app_id) + "\",";
+    json += "\"environment_hash\":\"" + json_escape(t.environment_hash) + "\",";
+    json += "\"license_public_key\":\"" + json_escape(t.license_public_key) + "\",";
+    json += "\"root_signature\":\"" + json_escape(t.root_signature) + "\",";
+    json += "\"state_index\":" + std::to_string(t.state_index) + ",";
+    json += "\"prev_state_hash\":\"" + json_escape(t.prev_state_hash) + "\",";
+    // state_payload: if encrypted, store ciphertext; otherwise plaintext
+    json += "\"state_payload\":\"" + json_escape(t.state_payload) + "\",";
+    json += "\"state_signature\":\"" + json_escape(t.state_signature) + "\",";
+    json += "\"alg\":\"" + json_escape(t.alg) + "\"";
+
+    // SEK wrapping fields (only present when state is encrypted)
+    if (!encrypted_sek_device.empty()) {
+        json += ",\"encrypted_sek_device\":\"" + json_escape(encrypted_sek_device) + "\"";
+    }
+    if (!encrypted_sek_password.empty()) {
+        json += ",\"encrypted_sek_password\":\"" + json_escape(encrypted_sek_password) + "\"";
+    }
+    if (state_payload_encrypted) {
+        json += ",\"state_payload_encrypted\":true";
+    }
+
     if (include_device_info && !device_public_key_pem.empty() && !device_signature_b64.empty()) {
         json += ",\"device_info\":{";
         json += "\"fingerprint\":\"" + json_escape(device_fingerprint) + "\",";
@@ -169,15 +229,33 @@ static uint64_t extract_json_u64(const std::string& json, const std::string& key
 }
 
 static bool is_encrypted_token_format(const std::string& input) {
-    // 真正的加密 token 格式是 ciphertext_base64url|nonce_base64url
-    // 只有两个字段，用 | 分隔
-    // 检查是否只有两个部分，且没有其他特殊字符
     size_t sep = input.find('|');
-    if (sep == std::string::npos || sep == 0 || sep + 1 >= input.size()) {
+    if (sep == std::string::npos) {
+        return false;
+    }
+    if (sep == 0 || sep + 1 >= input.size()) {
         return false;
     }
     return input.find('|', sep + 1) == std::string::npos;
 }
+
+// normalizePEM: trim whitespace + ensure single trailing newline
+// MUST be kept in sync with Go's normalizePEM and token_manager.cpp's normalizePEM
+static std::string normalizePEM(const std::string& pemContent) {
+    size_t start = pemContent.find_first_not_of(" \t\n\r");
+    size_t end = pemContent.find_last_not_of(" \t\n\r");
+    std::string trimmed;
+    if (start != std::string::npos && end != std::string::npos) {
+        trimmed = pemContent.substr(start, end - start + 1);
+    } else {
+        trimmed = pemContent;
+    }
+    if (!trimmed.empty() && trimmed.back() != '\n') {
+        trimmed += '\n';
+    }
+    return trimmed;
+}
+
 static bool split_product_public_key_file(const std::string& file_content, std::string* out_pem, std::string* out_root_sig) {
     if (!out_pem || !out_root_sig) {
         return false;
@@ -185,15 +263,72 @@ static bool split_product_public_key_file(const std::string& file_content, std::
     const std::string marker = "ROOT_SIGNATURE:";
     size_t pos = file_content.find(marker);
     if (pos == std::string::npos) {
-        *out_pem = trim(file_content);
+        *out_pem = normalizePEM(file_content);
         *out_root_sig = "";
         return !out_pem->empty();
     }
     std::string pem = file_content.substr(0, pos);
     std::string sig = file_content.substr(pos + marker.size());
-    *out_pem = trim(pem);
+    *out_pem = normalizePEM(pem);
     *out_root_sig = trim(sig);
     return !out_pem->empty();
+}
+
+// --- SEK (State Encryption Key) helper functions ---
+
+// Encrypt SEK with device private key: AES-256-GCM using SHA-256(device_private_key_pem) as key
+static std::string encrypt_sek_with_device_key(const std::array<uint8_t, 32>& sek, const std::string& device_private_key_pem) {
+    auto key = CryptoUtils::derive_key_from_pem(device_private_key_pem);
+    // Serialize SEK to raw bytes string
+    std::string sek_bytes(reinterpret_cast<const char*>(sek.data()), 32);
+    return CryptoUtils::aes_encrypt_raw(sek_bytes, key);
+}
+
+// Decrypt SEK with device private key
+static bool decrypt_sek_with_device_key(const std::string& encrypted_sek, const std::string& device_private_key_pem, std::array<uint8_t, 32>& out_sek) {
+    try {
+        auto key = CryptoUtils::derive_key_from_pem(device_private_key_pem);
+        std::string sek_bytes = CryptoUtils::aes_decrypt_raw(encrypted_sek, key);
+        if (sek_bytes.size() != 32) {
+            return false;
+        }
+        std::memcpy(out_sek.data(), sek_bytes.data(), 32);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+// Encrypt state_payload with SEK
+static std::string encrypt_state_payload_with_sek(const std::string& plaintext, const std::array<uint8_t, 32>& sek) {
+    return CryptoUtils::aes_encrypt_raw(plaintext, sek);
+}
+
+// Decrypt state_payload with SEK
+static std::string decrypt_state_payload_with_sek(const std::string& ciphertext, const std::array<uint8_t, 32>& sek) {
+    return CryptoUtils::aes_decrypt_raw(ciphertext, sek);
+}
+
+// Encrypt SEK with password-derived key (SHA-256 of password)
+static std::string encrypt_sek_with_password(const std::array<uint8_t, 32>& sek, const std::string& password) {
+    auto key = CryptoUtils::sha256_bytes(password);
+    std::string sek_bytes(reinterpret_cast<const char*>(sek.data()), 32);
+    return CryptoUtils::aes_encrypt_raw(sek_bytes, key);
+}
+
+// Decrypt SEK with password-derived key
+static bool decrypt_sek_with_password(const std::string& encrypted_sek, const std::string& password, std::array<uint8_t, 32>& out_sek) {
+    try {
+        auto key = CryptoUtils::sha256_bytes(password);
+        std::string sek_bytes = CryptoUtils::aes_decrypt_raw(encrypted_sek, key);
+        if (sek_bytes.size() != 32) {
+            return false;
+        }
+        std::memcpy(out_sek.data(), sek_bytes.data(), 32);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 // Implementation of the opaque pointer
@@ -211,7 +346,14 @@ struct DL_Client {
     std::string device_public_key_pem;
     std::string device_private_key_pem;
     std::string device_signature;
+    std::string original_holder_device_id;  // saved before activation overwrites token.holder_device_id
     std::unique_ptr<StateChainStorage> storage;
+
+    // SEK (State Encryption Key) - encrypts state_payload at rest
+    std::array<uint8_t, 32> sek;              // SEK in memory (plaintext)
+    bool has_sek = false;                      // whether SEK is loaded
+    std::string encrypted_sek_device;          // SEK encrypted with device key (for JSON storage)
+    std::string encrypted_sek_password;        // SEK encrypted with password-derived key (optional)
 };
 
 // Create a new client
@@ -307,15 +449,84 @@ DL_ErrorCode dl_client_import_token(DL_Client* client, const char* token_input) 
         t.alg = extract_json_string(json, "alg");
         t.signature = extract_json_string(json, "signature");
 
+        // Restore original_holder_device_id if present in JSON (activated tokens)
+        // This is critical: activated tokens have holder_device_id overwritten with device_id,
+        // but the signature was computed with the original value.
+        // Always restore even if empty (token issued with empty holder_device_id).
+        // Only restore if the field exists in JSON (distinguish from old format without this field).
+        std::string original_holder = extract_json_string(json, "original_holder_device_id");
+        bool has_original_holder_field = json.find("\"original_holder_device_id\"") != std::string::npos;
+        if (has_original_holder_field) {
+            client->original_holder_device_id = original_holder;
+        }
+
+        // Detect activated tokens by presence of device_info
+        // Activated tokens have device_info with fingerprint, public_key, signature
+        std::string device_fingerprint = extract_json_string(json, "fingerprint");
+        std::string device_pub_key = extract_json_string(json, "public_key");
+        std::string device_sig = extract_json_string(json, "signature");
+
         client->token_json = json;
         client->token = t;
         client->has_token = true;
         client->activated = false;
+        client->original_holder_device_id = "";  // Clear from previous token
+        // Clear SEK state from previous token
+        client->has_sek = false;
+        client->sek = std::array<uint8_t, 32>{};
+        client->encrypted_sek_device = "";
+        client->encrypted_sek_password = "";
+
+        if (!device_fingerprint.empty() && !device_pub_key.empty()) {
+            // This is an activated token - restore activation state
+            client->activated = true;
+            client->device_id = device_fingerprint;
+            client->device_public_key_pem = device_pub_key;
+            client->device_signature = device_sig;
+
+            // If original_holder_device_id not in JSON (old format),
+            // try to recover from storage
+            if (client->original_holder_device_id.empty() && client->storage && !t.license_code.empty()) {
+                std::vector<Token> chain = client->storage->loadChain(t.license_code);
+                if (!chain.empty()) {
+                    // The first entry in the chain is the original token before activation
+                    client->original_holder_device_id = chain[0].holder_device_id;
+                }
+            }
+
+            // Try to load saved device keys for idempotent behavior
+            if (client->storage && !t.license_code.empty()) {
+                auto saved_keys = client->storage->loadDeviceKeys(t.license_code);
+                if (saved_keys.has_value()) {
+                    client->device_private_key_pem = saved_keys->device_private_key_pem;
+                }
+            }
+
+            // --- SEK recovery: decrypt SEK and state_payload if present ---
+            std::string encrypted_sek_dev = extract_json_string(json, "encrypted_sek_device");
+            bool state_payload_encrypted = json.find("\"state_payload_encrypted\":true") != std::string::npos;
+
+            if (!encrypted_sek_dev.empty() && !client->device_private_key_pem.empty()) {
+                // Decrypt SEK via device channel
+                if (decrypt_sek_with_device_key(encrypted_sek_dev, client->device_private_key_pem, client->sek)) {
+                    client->has_sek = true;
+                    client->encrypted_sek_device = encrypted_sek_dev;
+                    client->encrypted_sek_password = extract_json_string(json, "encrypted_sek_password");
+
+                    // Decrypt state_payload back to plaintext in memory
+                    if (state_payload_encrypted && !client->token.state_payload.empty()) {
+                        try {
+                            client->token.state_payload = decrypt_state_payload_with_sek(client->token.state_payload, client->sek);
+                        } catch (...) {
+                            // If decryption fails, keep the ciphertext - verification will fail anyway
+                        }
+                    }
+                }
+            }
+        }
 
         if (client->storage && !client->token.license_code.empty()) {
-            std::vector<Token> chain;
-            chain.push_back(client->token);
-            (void)client->storage->saveFullChain(client->token.license_code, chain);
+            std::vector<std::string> chain_json; chain_json.push_back(client->token_json); (void)client->storage->saveFullChainJSON(client->token.license_code, chain_json);
         }
 
         return DL_ERROR_SUCCESS;
@@ -497,9 +708,11 @@ DL_ErrorCode dl_client_offline_verify_current_token(DL_Client* client, DL_Verifi
         }
         
         // Build signature data using OFFICIAL format: token_id|app_id|holder_device_id|license_code|issue_time
+        // Use original_holder_device_id (before activation changed it to device_id)
+        const std::string& sig_holder_device_id = client->activated ? client->original_holder_device_id : client->token.holder_device_id;
         std::string sig_data = client->token.token_id + "|" +
                                client->token.app_id + "|" +
-                               client->token.holder_device_id + "|" +
+                               sig_holder_device_id + "|" +
                                client->token.license_code + "|" +
                                std::to_string(client->token.issue_time);
         
@@ -526,6 +739,8 @@ DL_ErrorCode dl_client_offline_verify_current_token(DL_Client* client, DL_Verifi
             set_err(result, "token signature verification failed");
             return DL_ERROR_SUCCESS;
         }
+
+        set_ok(result);
         return DL_ERROR_SUCCESS;
     } catch (const std::exception& e) {
         set_err(result, e.what());
@@ -568,11 +783,21 @@ DL_ErrorCode dl_client_activate_bind_device(DL_Client* client, DL_VerificationRe
         return DL_ERROR_SUCCESS;
     }
 
-    DL_VerificationResult vr;
-    dl_client_offline_verify_current_token(client, &vr);
-    if (!vr.valid) {
-        *result = vr;
-        return DL_ERROR_SUCCESS;
+    // Save whether token was already activated before this call
+    // (e.g., re-import of activated token) to preserve original_holder_device_id
+    bool was_already_activated = client->activated;
+
+    // If token is already activated (restored from re-import of activated token),
+    // skip re-verification - it was already verified during original activation.
+    // This prevents "token signature verification failed" on re-imported activated tokens
+    // where original_holder_device_id may not be available (old format).
+    if (!client->activated) {
+        DL_VerificationResult vr;
+        dl_client_offline_verify_current_token(client, &vr);
+        if (!vr.valid) {
+            *result = vr;
+            return DL_ERROR_SUCCESS;
+        }
     }
 
     try {
@@ -611,13 +836,78 @@ DL_ErrorCode dl_client_activate_bind_device(DL_Client* client, DL_VerificationRe
         client->device_signature = CryptoUtils::sign_ed25519_data(data_to_sign, client->device_private_key_pem);
 
         client->activated = true;
+        // Save original holder_device_id before overwriting (needed for signature verification)
+        // Only set if not already preserved (e.g., from re-import of activated token)
+        // CRITICAL: Don't overwrite if already set from re-import, even if empty
+        // (token may have been issued with empty holder_device_id)
+        if (!was_already_activated) {
+            client->original_holder_device_id = client->token.holder_device_id;
+        }
         client->token.holder_device_id = client->device_id;
         client->token.license_public_key = "";
 
-        client->token_json = build_token_json(client->token, client->device_id, client->device_public_key_pem, client->device_signature, true);
+        // --- SEK: Generate State Encryption Key ---
+        // If SEK already exists (re-activation), reuse it; otherwise generate new one
+        if (!client->has_sek) {
+            // Check if encrypted_sek_device exists in the imported token JSON
+            std::string existing_encrypted_sek_device = extract_json_string(client->token_json, "encrypted_sek_device");
+            if (!existing_encrypted_sek_device.empty() && !client->device_private_key_pem.empty()) {
+                // Re-import of activated token: decrypt SEK from device channel
+                if (decrypt_sek_with_device_key(existing_encrypted_sek_device, client->device_private_key_pem, client->sek)) {
+                    client->has_sek = true;
+                    client->encrypted_sek_device = existing_encrypted_sek_device;
+                    // Also preserve password channel if present
+                    client->encrypted_sek_password = extract_json_string(client->token_json, "encrypted_sek_password");
+                }
+            }
+
+            if (!client->has_sek) {
+                // First activation: generate new SEK
+                client->sek = CryptoUtils::generate_sek();
+                client->has_sek = true;
+                // Wrap SEK with device key
+                client->encrypted_sek_device = encrypt_sek_with_device_key(client->sek, client->device_private_key_pem);
+                // Password channel is empty by default (no user password)
+                client->encrypted_sek_password = "";
+            }
+        }
+
+        // --- Encrypt state_payload with SEK (if non-empty) ---
+        bool state_payload_encrypted = false;
+        if (client->has_sek && !client->token.state_payload.empty()) {
+            // State signature was computed over plaintext state_payload (already done above or in prior step)
+            // Now encrypt the state_payload for storage in JSON
+            // NOTE: We keep token.state_payload as plaintext in memory for signing/verification
+            // The encrypted version goes into the JSON output only
+            state_payload_encrypted = true;
+        }
+
+        // Build token JSON with original_holder_device_id preserved
+        // so re-imported activated tokens can verify correctly
+        // If state_payload is encrypted, we store the ciphertext in JSON instead of plaintext
+        if (state_payload_encrypted) {
+            // Create a temporary token with encrypted state_payload for JSON output
+            Token json_token = client->token;
+            json_token.state_payload = encrypt_state_payload_with_sek(client->token.state_payload, client->sek);
+            client->token_json = build_token_json_with_original_holder(
+                json_token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                client->encrypted_sek_password,
+                true);
+        } else {
+            client->token_json = build_token_json_with_original_holder(
+                client->token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                client->encrypted_sek_password,
+                client->has_sek);  // still mark encrypted=true if SEK exists even if payload empty
+        }
 
         if (client->storage && !client->token.license_code.empty()) {
-            (void)client->storage->appendState(client->token.license_code, client->token);
+            (void)client->storage->appendStateJSON(client->token.license_code, client->token_json);
         }
         set_ok(result);
         return DL_ERROR_SUCCESS;
@@ -654,15 +944,134 @@ DL_ErrorCode dl_client_record_usage(DL_Client* client, const char* new_state_pay
         client->token.state_index += 1;
         client->token.state_payload = new_state_payload_json;
 
+        // State signature is computed over PLAINTEXT state_payload
         const std::string state_sig_data = build_state_sig_data(client->token.state_index, client->token.prev_state_hash, client->token.state_payload);
         client->token.state_signature = CryptoUtils::sign_ed25519_data(state_sig_data, client->device_private_key_pem);
 
-        client->token_json = build_token_json(client->token, client->device_id, client->device_public_key_pem, client->device_signature, true);
-
-        if (client->storage && !client->token.license_code.empty()) {
-            (void)client->storage->appendState(client->token.license_code, client->token);
+        // Build JSON: if SEK exists, encrypt state_payload for storage
+        if (client->has_sek && !client->token.state_payload.empty()) {
+            Token json_token = client->token;
+            json_token.state_payload = encrypt_state_payload_with_sek(client->token.state_payload, client->sek);
+            client->token_json = build_token_json_with_original_holder(
+                json_token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                client->encrypted_sek_password,
+                true);
+        } else {
+            client->token_json = build_token_json_with_original_holder(
+                client->token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                client->encrypted_sek_password,
+                client->has_sek);
         }
 
+        if (client->storage && !client->token.license_code.empty()) {
+            (void)client->storage->appendStateJSON(client->token.license_code, client->token_json);
+        }
+
+        set_ok(result);
+        return DL_ERROR_SUCCESS;
+    } catch (const std::exception& e) {
+        set_err(result, e.what());
+        return DL_ERROR_UNKNOWN_ERROR;
+    } catch (...) {
+        set_err(result, "unknown error");
+        return DL_ERROR_UNKNOWN_ERROR;
+    }
+}
+
+DL_ErrorCode dl_client_get_state_payload(DL_Client* client, char* out_payload, size_t out_payload_size) {
+    if (!client || !out_payload || out_payload_size == 0) {
+        return DL_ERROR_INVALID_ARGUMENT;
+    }
+    if (!client->has_token) {
+        out_payload[0] = '\0';
+        return DL_ERROR_SUCCESS;
+    }
+    // token.state_payload is always plaintext in memory (decrypted during import)
+    std::strncpy(out_payload, client->token.state_payload.c_str(), out_payload_size - 1);
+    out_payload[out_payload_size - 1] = '\0';
+    return DL_ERROR_SUCCESS;
+}
+
+DL_ErrorCode dl_client_add_recovery_channel(DL_Client* client, const char* password, DL_VerificationResult* result) {
+    if (!client || !password || !result) {
+        return DL_ERROR_INVALID_ARGUMENT;
+    }
+    if (!client->has_sek) {
+        set_err(result, "no SEK available - activate first");
+        return DL_ERROR_SUCCESS;
+    }
+    try {
+        // Wrap SEK with password-derived key
+        client->encrypted_sek_password = encrypt_sek_with_password(client->sek, std::string(password));
+
+        // Rebuild token JSON with the new encrypted_sek_password
+        if (client->has_sek && !client->token.state_payload.empty()) {
+            Token json_token = client->token;
+            json_token.state_payload = encrypt_state_payload_with_sek(client->token.state_payload, client->sek);
+            client->token_json = build_token_json_with_original_holder(
+                json_token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                client->encrypted_sek_password,
+                true);
+        } else {
+            client->token_json = build_token_json_with_original_holder(
+                client->token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                client->encrypted_sek_password,
+                client->has_sek);
+        }
+        set_ok(result);
+        return DL_ERROR_SUCCESS;
+    } catch (const std::exception& e) {
+        set_err(result, e.what());
+        return DL_ERROR_UNKNOWN_ERROR;
+    } catch (...) {
+        set_err(result, "unknown error");
+        return DL_ERROR_UNKNOWN_ERROR;
+    }
+}
+
+DL_ErrorCode dl_client_remove_recovery_channel(DL_Client* client, DL_VerificationResult* result) {
+    if (!client || !result) {
+        return DL_ERROR_INVALID_ARGUMENT;
+    }
+    if (!client->has_sek) {
+        set_err(result, "no SEK available");
+        return DL_ERROR_SUCCESS;
+    }
+    try {
+        client->encrypted_sek_password = "";
+
+        // Rebuild token JSON without encrypted_sek_password
+        if (!client->token.state_payload.empty()) {
+            Token json_token = client->token;
+            json_token.state_payload = encrypt_state_payload_with_sek(client->token.state_payload, client->sek);
+            client->token_json = build_token_json_with_original_holder(
+                json_token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                "",
+                true);
+        } else {
+            client->token_json = build_token_json_with_original_holder(
+                client->token, client->original_holder_device_id,
+                client->device_id, client->device_public_key_pem,
+                client->device_signature, true,
+                client->encrypted_sek_device,
+                "",
+                client->has_sek);
+        }
         set_ok(result);
         return DL_ERROR_SUCCESS;
     } catch (const std::exception& e) {

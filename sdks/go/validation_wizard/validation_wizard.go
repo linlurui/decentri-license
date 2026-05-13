@@ -106,10 +106,10 @@ func findProductPublicKey() string {
 func resolveProductKeyPath(filename string) string {
 	// 可能的搜索路径
 	searchPaths := []string{
-		"./" + filename,                    // 当前目录
-		"../" + filename,                   // 上级目录
-		"../../" + filename,                // 上上级目录
-		"../../../dl-issuer/" + filename,   // dl-issuer目录（修复路径）
+		"./" + filename,                  // 当前目录
+		"../" + filename,                 // 上级目录
+		"../../" + filename,              // 上上级目录
+		"../../../dl-issuer/" + filename, // dl-issuer目录（修复路径）
 	}
 
 	for _, path := range searchPaths {
@@ -153,12 +153,6 @@ func findAllProductKeys() []string {
 	}
 	sort.Strings(unique)
 
-	// 限制显示数量，避免列表太长
-	if len(unique) > 10 {
-		unique = unique[:10]
-		unique = append(unique, "... (还有更多)")
-	}
-
 	return unique
 }
 
@@ -169,9 +163,12 @@ func findTokenFiles() []string {
 	// 在当前目录和上级目录查找token文件
 	patterns := []string{
 		"token_*.txt",
+		"token_*.json",
 		"../token_*.txt",
-		"../../../dl-issuer/token_*.txt",           // dl-issuer目录（修复路径）
-		"../../../dl-issuer/token_*encrypted.txt",  // 加密token文件
+		"../token_*.json",
+		"../../../dl-issuer/token_*.txt", // dl-issuer目录（修复路径）
+		"../../../dl-issuer/token_*.json",
+		"../../../dl-issuer/token_*encrypted.txt", // 加密token文件
 	}
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(pattern)
@@ -183,7 +180,7 @@ func findTokenFiles() []string {
 	var unique []string
 	for _, file := range candidates {
 		filename := filepath.Base(file)
-		if !seen[filename] && strings.Contains(filename, "token_") && strings.HasSuffix(filename, ".txt") {
+		if !seen[filename] && strings.Contains(filename, "token_") && (strings.HasSuffix(filename, ".txt") || strings.HasSuffix(filename, ".json")) {
 			seen[filename] = true
 			unique = append(unique, filename)
 		}
@@ -292,9 +289,9 @@ func findStateTokenFiles() []string {
 func resolveTokenFilePath(filename string) string {
 	// 可能的搜索路径
 	searchPaths := []string{
-		"./" + filename,                     // 当前目录
-		"../" + filename,                    // 上级目录
-		"../../../dl-issuer/" + filename,    // dl-issuer目录（修复路径）
+		"./" + filename,                  // 当前目录
+		"../" + filename,                 // 上级目录
+		"../../../dl-issuer/" + filename, // dl-issuer目录（修复路径）
 	}
 
 	for _, path := range searchPaths {
@@ -326,8 +323,9 @@ func main() {
 		fmt.Println("4. 📊 记账信息")
 		fmt.Println("5. 🔗 信任链验证")
 		fmt.Println("6. 🎯 综合验证")
-		fmt.Println("7. 🚪 退出")
-		fmt.Print("请输入选项 (0-7): ")
+		fmt.Println("7. � 恢复通道管理（密码/助记词）")
+		fmt.Println("8. � 退出")
+		fmt.Print("请输入选项 (0-8): ")
 
 		if !scanner.Scan() {
 			break
@@ -351,6 +349,8 @@ func main() {
 		case "6":
 			comprehensiveValidationWizard(scanner)
 		case "7":
+			recoveryChannelWizard(scanner)
+		case "8":
 			fmt.Println("感谢使用 DecentriLicense Go SDK 验证向导!")
 			return
 		default:
@@ -492,7 +492,7 @@ func activateTokenWizard(scanner *bufio.Scanner) {
 			fmt.Printf("📄 使用产品公钥文件: %s\n", productKeyPath)
 		}
 	}
-	
+
 	if productKeyPath != "" {
 		productKeyData, err := ioutil.ReadFile(productKeyPath)
 		if err != nil {
@@ -520,7 +520,7 @@ func activateTokenWizard(scanner *bufio.Scanner) {
 		return
 	}
 	fmt.Println("✅ 令牌导入成功")
-	
+
 	// 然后激活当前导入的令牌
 	fmt.Println("🎯 正在激活令牌...")
 	result, err := client.ActivateBindDevice()
@@ -560,7 +560,7 @@ func activateTokenWizard(scanner *bufio.Scanner) {
 	} else {
 		fmt.Printf("❌ 令牌激活失败: %s\n", result.ErrorMessage)
 	}
-	
+
 	// 显示最终状态
 	activated, err := client.IsActivated()
 	if err == nil && activated {
@@ -637,6 +637,32 @@ func verifyTokenWizard(scanner *bufio.Scanner) {
 	if err != nil {
 		log.Printf("❌ 获取客户端失败: %v", err)
 		return
+	}
+
+	// 设置产品公钥（校验签名必须）
+	var productKeyPath string
+	if selectedProductKeyPath != "" {
+		productKeyPath = selectedProductKeyPath
+		fmt.Printf("📄 使用产品公钥文件: %s\n", filepath.Base(productKeyPath))
+	} else {
+		productKeyPath = findProductPublicKey()
+		if productKeyPath != "" {
+			fmt.Printf("📄 使用产品公钥文件: %s\n", filepath.Base(productKeyPath))
+		}
+	}
+	if productKeyPath != "" {
+		productKeyData, err := ioutil.ReadFile(productKeyPath)
+		if err != nil {
+			log.Printf("❌ 读取产品公钥失败: %v", err)
+			return
+		}
+		err = client.SetProductPublicKey(string(productKeyData))
+		if err != nil {
+			log.Printf("❌ 设置产品公钥失败: %v", err)
+			return
+		}
+	} else {
+		fmt.Println("⚠️  未找到产品公钥，签名验证可能失败")
 	}
 
 	// 检查选择的令牌是否是当前激活的令牌
@@ -740,7 +766,7 @@ func validateTokenWizard(scanner *bufio.Scanner) {
 			fmt.Printf("📄 使用产品公钥文件: %s\n", productKeyPath)
 		}
 	}
-	
+
 	if productKeyPath != "" {
 		productKeyData, err := ioutil.ReadFile(productKeyPath)
 		if err != nil {
@@ -1708,5 +1734,63 @@ func comprehensiveValidationWizard(scanner *bufio.Scanner) {
 		fmt.Println("⚠️  大部分检查通过，系统基本正常")
 	} else {
 		fmt.Println("❌ 多项检查失败，请检查系统配置")
+	}
+}
+
+func recoveryChannelWizard(scanner *bufio.Scanner) {
+	fmt.Println("\n🔑 恢复通道管理")
+	fmt.Println("----------")
+
+	client, err := getOrCreateClient()
+	if err != nil {
+		log.Printf("❌ 获取客户端失败: %v", err)
+		return
+	}
+
+	activated, err := client.IsActivated()
+	if err != nil || !activated {
+		fmt.Println("❌ 请先激活令牌再管理恢复通道")
+		return
+	}
+
+	fmt.Println("请选择操作:")
+	fmt.Println("1. 添加恢复通道 (设置密码)")
+	fmt.Println("2. 移除恢复通道")
+	fmt.Println("0. 返回")
+	fmt.Print("\n请选择 (0-2): ")
+
+	if !scanner.Scan() {
+		return
+	}
+	choice := strings.TrimSpace(scanner.Text())
+
+	switch choice {
+	case "1":
+		fmt.Print("请输入恢复密码: ")
+		if !scanner.Scan() {
+			return
+		}
+		password := strings.TrimSpace(scanner.Text())
+		if password == "" {
+			fmt.Println("❌ 密码不能为空")
+			return
+		}
+		result, err := client.AddRecoveryChannel(password)
+		if err != nil {
+			log.Printf("❌ 添加失败: %v", err)
+		} else if result.Valid {
+			fmt.Println("✅ 恢复通道添加成功")
+		} else {
+			fmt.Printf("❌ 添加失败: %s\n", result.ErrorMessage)
+		}
+	case "2":
+		result, err := client.RemoveRecoveryChannel()
+		if err != nil {
+			log.Printf("❌ 移除失败: %v", err)
+		} else if result.Valid {
+			fmt.Println("✅ 恢复通道已移除")
+		} else {
+			fmt.Printf("❌ 移除失败: %s\n", result.ErrorMessage)
+		}
 	}
 }

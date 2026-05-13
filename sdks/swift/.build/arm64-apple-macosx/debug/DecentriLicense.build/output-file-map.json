@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/master.swiftdeps"
+  },
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/CryptoUtils.swift": {
+    "dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.d",
+    "object": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.swift.o",
+    "swiftmodule": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils~partial.swiftmodule",
+    "swift-dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.swiftdeps",
+    "diagnostics": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.dia"
+  },
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/DecentriLicenseClient.swift": {
+    "dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.d",
+    "object": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.swift.o",
+    "swiftmodule": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient~partial.swiftmodule",
+    "swift-dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.swiftdeps",
+    "diagnostics": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.dia"
+  }
+}

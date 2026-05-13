@@ -278,6 +278,108 @@ bool StateChainStorage::appendState(const std::string& license_id,
     return true;
 }
 
+// appendStateJSON: 使用预构建的JSON字符串追加状态（state_payload可已加密）
+bool StateChainStorage::appendStateJSON(const std::string& license_id,
+                                         const std::string& token_json) {
+    // 以追加模式打开链日志文件
+    std::ofstream log_file(getChainLogPath(license_id), std::ios::binary | std::ios::app);
+    if (!log_file.is_open()) {
+        return false;
+    }
+
+    // 直接使用预构建的JSON
+    std::vector<uint8_t> token_data(token_json.begin(), token_json.end());
+    uint32_t length = static_cast<uint32_t>(token_data.size());
+    uint32_t checksum = calculateChecksum(token_data);
+
+    // 写入记录
+    log_file.write(reinterpret_cast<const char*>(&length), sizeof(length));
+    log_file.write(reinterpret_cast<const char*>(token_data.data()), token_data.size());
+    log_file.write(reinterpret_cast<const char*>(&checksum), sizeof(checksum));
+
+    log_file.close();
+    if (log_file.fail()) {
+        return false;
+    }
+
+    // 更新当前状态（使用预构建的JSON，state_payload已加密）
+    std::vector<uint8_t> current_data(token_json.begin(), token_json.end());
+    if (!atomicWriteFile(getCurrentStatePath(license_id), current_data)) {
+        return false;
+    }
+
+    // 更新元数据
+    auto metadata_opt = loadMetadata(license_id);
+    if (metadata_opt.has_value()) {
+        ChainMetadata metadata = metadata_opt.value();
+        metadata.total_states++;
+        metadata.last_verification_time = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        return saveMetadata(license_id, metadata);
+    }
+
+    return true;
+}
+
+// saveFullChainJSON: 使用预构建的JSON字符串保存完整状态链（state_payload可已加密）
+bool StateChainStorage::saveFullChainJSON(const std::string& license_id,
+                                            const std::vector<std::string>& chain_json) {
+    if (chain_json.empty()) {
+        return false;
+    }
+
+    // 创建链目录
+    if (!createDirectory(getChainDir(license_id))) {
+        return false;
+    }
+
+    // 保存创世Token（第一个JSON）
+    std::vector<uint8_t> genesis_data(chain_json.front().begin(), chain_json.front().end());
+    if (!atomicWriteFile(getGenesisTokenPath(license_id), genesis_data)) {
+        return false;
+    }
+
+    // 创建新的链日志文件
+    std::ofstream log_file(getChainLogPath(license_id), std::ios::binary);
+    if (!log_file.is_open()) {
+        return false;
+    }
+
+    // 写入所有状态到链日志
+    for (const auto& json_str : chain_json) {
+        std::vector<uint8_t> token_data(json_str.begin(), json_str.end());
+        uint32_t length = static_cast<uint32_t>(token_data.size());
+        uint32_t checksum = calculateChecksum(token_data);
+
+        // 写入记录长度
+        log_file.write(reinterpret_cast<const char*>(&length), sizeof(length));
+        // 写入Token数据
+        log_file.write(reinterpret_cast<const char*>(token_data.data()), token_data.size());
+        // 写入校验和
+        log_file.write(reinterpret_cast<const char*>(&checksum), sizeof(checksum));
+    }
+
+    log_file.close();
+    if (log_file.fail()) {
+        return false;
+    }
+
+    // 保存当前状态（最后一个JSON）
+    std::vector<uint8_t> current_data(chain_json.back().begin(), chain_json.back().end());
+    if (!atomicWriteFile(getCurrentStatePath(license_id), current_data)) {
+        return false;
+    }
+
+    // 保存元数据
+    ChainMetadata metadata;
+    metadata.total_states = chain_json.size();
+    metadata.license_id = license_id;
+    metadata.last_verification_time = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+
+    return saveMetadata(license_id, metadata);
+}
+
 std::vector<Token> StateChainStorage::loadChain(const std::string& license_id) {
     std::vector<Token> chain;
     

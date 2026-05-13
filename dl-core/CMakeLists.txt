@@ -5,8 +5,8 @@ project(DecentriLicense)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Debug output disabled for production
-# add_definitions(-DDECENTRILICENSE_DEBUG)
+# Debug output enabled for diagnostics
+add_definitions(-DDECENTRILICENSE_DEBUG)
 
 # Enable signature verification
 

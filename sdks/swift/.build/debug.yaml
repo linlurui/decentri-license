@@ -1,0 +1,106 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "DecentriLicense-arm64-apple-macosx26.0-debug.module": ["<DecentriLicense-arm64-apple-macosx26.0-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "ValidationWizard-arm64-apple-macosx26.0-debug.exe": ["<ValidationWizard-arm64-apple-macosx26.0-debug.exe>"]
+  "ValidationWizard-arm64-apple-macosx26.0-debug.module": ["<ValidationWizard-arm64-apple-macosx26.0-debug.module>"]
+  "main": ["<DecentriLicense-arm64-apple-macosx26.0-debug.module>","<ValidationWizard-arm64-apple-macosx26.0-debug.exe>","<ValidationWizard-arm64-apple-macosx26.0-debug.module>"]
+  "test": ["<DecentriLicense-arm64-apple-macosx26.0-debug.module>","<ValidationWizard-arm64-apple-macosx26.0-debug.exe>","<ValidationWizard-arm64-apple-macosx26.0-debug.module>"]
+default: "main"
+nodes:
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/CDecentriLicense/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/ValidationWizard/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard":
+    is-mutated: true
+commands:
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/CryptoUtils.swift","/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/DecentriLicenseClient.swift"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/sources"]
+    description: "Write auxiliary file /Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/sources"
+
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard-entitlement.plist":
+    tool: write-auxiliary-file
+    inputs: ["<entitlement-plist>","<com.apple.security.get-task-allow>"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard-entitlement.plist"]
+    description: "Write auxiliary file /Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard-entitlement.plist"
+
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/ValidationWizard/main.swift"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/sources"]
+    description: "Write auxiliary file /Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/sources"
+
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.swift.o"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.product/Objects.LinkFileList"
+
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+
+  "<DecentriLicense-arm64-apple-macosx26.0-debug.module>":
+    tool: phony
+    inputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/DecentriLicense.swiftmodule"]
+    outputs: ["<DecentriLicense-arm64-apple-macosx26.0-debug.module>"]
+
+  "<ValidationWizard-arm64-apple-macosx26.0-debug.exe>":
+    tool: phony
+    inputs: ["<ValidationWizard-arm64-apple-macosx26.0-debug.exe-CodeSigning>"]
+    outputs: ["<ValidationWizard-arm64-apple-macosx26.0-debug.exe>"]
+
+  "<ValidationWizard-arm64-apple-macosx26.0-debug.module>":
+    tool: phony
+    inputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/ValidationWizard.swiftmodule"]
+    outputs: ["<ValidationWizard-arm64-apple-macosx26.0-debug.module>"]
+
+  "C.DecentriLicense-arm64-apple-macosx26.0-debug.module":
+    tool: shell
+    inputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/CryptoUtils.swift","/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/DecentriLicenseClient.swift","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/sources"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/DecentriLicense.swiftmodule"]
+    description: "Compiling Swift Module 'DecentriLicense' (2 sources)"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","DecentriLicense","-emit-dependencies","-emit-module","-emit-module-path","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/DecentriLicense.swiftmodule","-output-file-map","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/output-file-map.json","-parse-as-library","-incremental","-c","@/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/sources","-I","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx10.13","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j10","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-Xcc","-fmodule-map-file=/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/CDecentriLicense/module.modulemap","-I/Volumes/workspace/project/dl-issuer/dl-core/include","-module-cache-path","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/include/DecentriLicense-Swift.h","-swift-version","5","-plugin-path","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","swift"]
+
+  "C.ValidationWizard-arm64-apple-macosx26.0-debug.exe":
+    tool: shell
+    inputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/CryptoUtils.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/DecentriLicenseClient.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.product/Objects.LinkFileList"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard"]
+    description: "Linking ./.build/arm64-apple-macosx/debug/ValidationWizard"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L/Volumes/workspace/project/dl-issuer/dl-core/build","-ldecentrilicense","-L","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug","-o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard","-module-name","ValidationWizard","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-alias","-Xlinker","_ValidationWizard_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx","-Xlinker","-rpath","-Xlinker","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-6.2/macosx","-target","arm64-apple-macosx10.13","-Xlinker","-add_ast_path","-Xlinker","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/DecentriLicense.swiftmodule","-Xlinker","-add_ast_path","-Xlinker","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/ValidationWizard.swiftmodule","-plugin-path","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
+
+  "C.ValidationWizard-arm64-apple-macosx26.0-debug.exe-entitlements":
+    tool: shell
+    inputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard-entitlement.plist"]
+    outputs: ["<ValidationWizard-arm64-apple-macosx26.0-debug.exe-CodeSigning>"]
+    description: "Applying debug entitlements to ./.build/arm64-apple-macosx/debug/ValidationWizard"
+    args: ["codesign","--force","--sign","-","--entitlements","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard-entitlement.plist","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard"]
+
+  "C.ValidationWizard-arm64-apple-macosx26.0-debug.module":
+    tool: shell
+    inputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/ValidationWizard/main.swift","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/DecentriLicense.swiftmodule","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/sources"]
+    outputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.swift.o","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/ValidationWizard.swiftmodule"]
+    description: "Compiling Swift Module 'ValidationWizard' (1 sources)"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","ValidationWizard","-emit-dependencies","-emit-module","-emit-module-path","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules/ValidationWizard.swiftmodule","-output-file-map","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/output-file-map.json","-incremental","-c","@/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/sources","-I","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx10.13","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j10","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-Xcc","-fmodule-map-file=/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/CDecentriLicense/module.modulemap","-I/Volumes/workspace/project/dl-issuer/dl-core/include","-module-cache-path","/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","ValidationWizard_main","-swift-version","5","-plugin-path","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","swift"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/CDecentriLicense/","/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/DecentriLicense/","/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/ValidationWizard/","/Volumes/workspace/project/dl-issuer/sdks/swift/Package.swift","/Volumes/workspace/project/dl-issuer/sdks/swift/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

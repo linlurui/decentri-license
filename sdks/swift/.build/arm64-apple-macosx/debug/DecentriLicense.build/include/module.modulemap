@@ -1,0 +1,3 @@
+module DecentriLicense {
+    header "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/DecentriLicense.build/include/DecentriLicense-Swift.h"
+}

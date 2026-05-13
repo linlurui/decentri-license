@@ -75,12 +75,12 @@ const (
 
 // Error codes
 var (
-	ErrInvalidArgument      = errors.New("invalid argument")
-	ErrNotInitialized       = errors.New("not initialized")
-	ErrAlreadyInitialized   = errors.New("already initialized")
-	ErrNetworkError         = errors.New("network error")
-	ErrCryptoError          = errors.New("crypto error")
-	ErrUnknownError         = errors.New("unknown error")
+	ErrInvalidArgument    = errors.New("invalid argument")
+	ErrNotInitialized     = errors.New("not initialized")
+	ErrAlreadyInitialized = errors.New("already initialized")
+	ErrNetworkError       = errors.New("network error")
+	ErrCryptoError        = errors.New("crypto error")
+	ErrUnknownError       = errors.New("unknown error")
 )
 
 // Client represents a DecentriLicense client
@@ -411,6 +411,60 @@ func (c *Client) ExportStateChangedTokenEncrypted() (string, error) {
 		n = len(buf)
 	}
 	return string(buf[:n]), nil
+}
+
+// GetStatePayload returns the plaintext state_payload (automatically decrypted from SEK if applicable)
+func (c *Client) GetStatePayload() (string, error) {
+	if c.client == nil {
+		return "", ErrNotInitialized
+	}
+	buf := make([]byte, 65536)
+	code := C.dl_client_get_state_payload(c.client, (*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)))
+	err := c.errorFromCode(code)
+	if err != nil {
+		return "", err
+	}
+	n := bytes.IndexByte(buf, 0)
+	if n < 0 {
+		n = len(buf)
+	}
+	return string(buf[:n]), nil
+}
+
+// AddRecoveryChannel wraps the SEK with a password-derived key for recovery/migration
+func (c *Client) AddRecoveryChannel(password string) (VerificationResult, error) {
+	if c.client == nil {
+		return VerificationResult{}, ErrNotInitialized
+	}
+	cs := C.CString(password)
+	defer C.free(unsafe.Pointer(cs))
+	var vr C.DL_VerificationResult
+	code := C.dl_client_add_recovery_channel(c.client, cs, &vr)
+	err := c.errorFromCode(code)
+	if err != nil {
+		return VerificationResult{}, err
+	}
+	return VerificationResult{
+		Valid:        int(vr.valid) != 0,
+		ErrorMessage: C.GoString(&vr.error_message[0]),
+	}, nil
+}
+
+// RemoveRecoveryChannel clears the password-encrypted SEK channel
+func (c *Client) RemoveRecoveryChannel() (VerificationResult, error) {
+	if c.client == nil {
+		return VerificationResult{}, ErrNotInitialized
+	}
+	var vr C.DL_VerificationResult
+	code := C.dl_client_remove_recovery_channel(c.client, &vr)
+	err := c.errorFromCode(code)
+	if err != nil {
+		return VerificationResult{}, err
+	}
+	return VerificationResult{
+		Valid:        int(vr.valid) != 0,
+		ErrorMessage: C.GoString(&vr.error_message[0]),
+	}, nil
 }
 
 // errorFromCode converts C error code to Go error

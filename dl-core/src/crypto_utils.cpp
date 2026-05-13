@@ -955,4 +955,134 @@ bool CryptoUtils::verify_sm2_signature(const std::string& data,
     }
 }
 
+std::string CryptoUtils::aes_encrypt_raw(const std::string& plaintext, const std::array<uint8_t, 32>& key) {
+    initialize_openssl();
+
+    std::vector<uint8_t> nonce(12);
+    if (RAND_bytes(nonce.data(), static_cast<int>(nonce.size())) != 1) {
+        throw std::runtime_error("failed to generate nonce for raw aes encrypt");
+    }
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        throw std::runtime_error("failed to create cipher context");
+    }
+
+    std::vector<uint8_t> ciphertext(plaintext.size());
+    int out_len = 0;
+    int total_len = 0;
+
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to init aes-256-gcm");
+    }
+    if (EVP_EncryptInit_ex(ctx, nullptr, nullptr, key.data(), nonce.data()) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to set key/nonce");
+    }
+    if (EVP_EncryptUpdate(ctx, ciphertext.data(), &out_len,
+                          reinterpret_cast<const unsigned char*>(plaintext.data()),
+                          static_cast<int>(plaintext.size())) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to encrypt");
+    }
+    total_len = out_len;
+    if (EVP_EncryptFinal_ex(ctx, ciphertext.data() + total_len, &out_len) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to finalize encrypt");
+    }
+    total_len += out_len;
+    ciphertext.resize(static_cast<size_t>(total_len));
+
+    std::vector<uint8_t> tag(16);
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, static_cast<int>(tag.size()), tag.data()) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to get tag");
+    }
+    EVP_CIPHER_CTX_free(ctx);
+
+    // Format: base64(ciphertext + tag) + "|" + base64(nonce)
+    std::vector<uint8_t> ct_with_tag;
+    ct_with_tag.reserve(ciphertext.size() + tag.size());
+    ct_with_tag.insert(ct_with_tag.end(), ciphertext.begin(), ciphertext.end());
+    ct_with_tag.insert(ct_with_tag.end(), tag.begin(), tag.end());
+
+    return base64url_encode(ct_with_tag) + "|" + base64url_encode(nonce);
+}
+
+std::string CryptoUtils::aes_decrypt_raw(const std::string& ciphertext_b64, const std::array<uint8_t, 32>& key) {
+    initialize_openssl();
+
+    size_t sep = ciphertext_b64.find('|');
+    if (sep == std::string::npos) {
+        throw std::runtime_error("invalid encrypted format: missing separator");
+    }
+
+    std::string ct_b64u = ciphertext_b64.substr(0, sep);
+    std::string nonce_b64u = ciphertext_b64.substr(sep + 1);
+
+    std::vector<uint8_t> ct_with_tag = base64url_decode(ct_b64u);
+    std::vector<uint8_t> nonce = base64url_decode(nonce_b64u);
+
+    if (nonce.size() != 12) {
+        throw std::runtime_error("invalid nonce length");
+    }
+    if (ct_with_tag.size() < 16) {
+        throw std::runtime_error("invalid ciphertext length");
+    }
+
+    std::vector<uint8_t> tag(ct_with_tag.end() - 16, ct_with_tag.end());
+    std::vector<uint8_t> ciphertext(ct_with_tag.begin(), ct_with_tag.end() - 16);
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        throw std::runtime_error("failed to create cipher context");
+    }
+
+    std::vector<uint8_t> plaintext(ciphertext.size());
+    int out_len = 0;
+    int total_len = 0;
+
+    if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to init aes-256-gcm");
+    }
+    if (EVP_DecryptInit_ex(ctx, nullptr, nullptr, key.data(), nonce.data()) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to set key/nonce");
+    }
+    if (EVP_DecryptUpdate(ctx, plaintext.data(), &out_len,
+                          ciphertext.data(), static_cast<int>(ciphertext.size())) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to decrypt");
+    }
+    total_len = out_len;
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, static_cast<int>(tag.size()), tag.data()) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("failed to set tag");
+    }
+    int final_ok = EVP_DecryptFinal_ex(ctx, plaintext.data() + total_len, &out_len);
+    EVP_CIPHER_CTX_free(ctx);
+    if (final_ok != 1) {
+        throw std::runtime_error("gcm tag verification failed");
+    }
+    total_len += out_len;
+    plaintext.resize(static_cast<size_t>(total_len));
+
+    return std::string(reinterpret_cast<const char*>(plaintext.data()), plaintext.size());
+}
+
+std::array<uint8_t, 32> CryptoUtils::derive_key_from_pem(const std::string& pem_content) {
+    return sha256_bytes(pem_content);
+}
+
+std::array<uint8_t, 32> CryptoUtils::generate_sek() {
+    initialize_openssl();
+    std::array<uint8_t, 32> sek;
+    if (RAND_bytes(sek.data(), 32) != 1) {
+        throw std::runtime_error("failed to generate SEK");
+    }
+    return sek;
+}
+
 }  // namespace decentrilicense

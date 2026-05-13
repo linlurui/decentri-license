@@ -1,0 +1,471 @@
+/**
+ * DecentriLicense C SDK 验证向导
+ * 
+ * 这是一个交互式的验证工具，用于测试DecentriLicense C SDK的所有功能。
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include "decenlicense_c.h"
+
+// 记账信息结构
+typedef struct {
+    char token_id[256];
+    char activation_time[256];
+    char device_id[256];
+    char license_code[256];
+    int is_valid;
+} AccountingInfo;
+
+// 验证结果结构
+typedef struct {
+    int valid;
+    char token_id[256];
+    char error[256];
+    char app_id[256];
+    char license_code[256];
+    char issue_time[256];
+    char expire_time[256];
+    char holder_device_id[256];
+} ValidationResult;
+
+// 函数声明
+void print_menu();
+void activate_token_wizard();
+void verify_token_wizard();
+void accounting_wizard();
+void trust_chain_validation_wizard();
+void comprehensive_validation_wizard();
+void trim_whitespace(char* str);
+void get_current_time_str(char* buffer, size_t buffer_size);
+
+static DL_Client* g_client = NULL;
+static int g_initialized = 0;
+
+static char* read_text_file_alloc(const char* path, size_t* out_len) {
+    if (out_len) {
+        *out_len = 0;
+    }
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        return NULL;
+    }
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return NULL;
+    }
+    long sz = ftell(f);
+    if (sz < 0) {
+        fclose(f);
+        return NULL;
+    }
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return NULL;
+    }
+    char* buf = (char*)malloc((size_t)sz + 1);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
+    size_t n = fread(buf, 1, (size_t)sz, f);
+    fclose(f);
+    buf[n] = '\0';
+    if (out_len) {
+        *out_len = n;
+    }
+    return buf;
+}
+
+static int ends_with_case_insensitive(const char* s, const char* suffix) {
+    if (!s || !suffix) {
+        return 0;
+    }
+    size_t sl = strlen(s);
+    size_t su = strlen(suffix);
+    if (su > sl) {
+        return 0;
+    }
+    const char* p = s + (sl - su);
+    for (size_t i = 0; i < su; i++) {
+        char a = p[i];
+        char b = suffix[i];
+        if (a >= 'A' && a <= 'Z') a = (char)(a - 'A' + 'a');
+        if (b >= 'A' && b <= 'Z') b = (char)(b - 'A' + 'a');
+        if (a != b) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int list_files_for_selection(const char** exts, int ext_count, char files[][512], int max_files) {
+    DIR* d = opendir(".");
+    if (!d) {
+        return 0;
+    }
+    int n = 0;
+    struct dirent* ent;
+    while ((ent = readdir(d)) != NULL) {
+        const char* name = ent->d_name;
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+            continue;
+        }
+        struct stat st;
+        if (stat(name, &st) != 0 || !S_ISREG(st.st_mode)) {
+            continue;
+        }
+        if (ext_count > 0) {
+            int ok = 0;
+            for (int i = 0; i < ext_count; i++) {
+                if (ends_with_case_insensitive(name, exts[i])) {
+                    ok = 1;
+                    break;
+                }
+            }
+            if (!ok) {
+                continue;
+            }
+        }
+        if (n < max_files) {
+            strncpy(files[n], name, sizeof(files[n]) - 1);
+            files[n][sizeof(files[n]) - 1] = '\0';
+            n++;
+        }
+    }
+    closedir(d);
+    // simple sort
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (strcmp(files[j], files[i]) < 0) {
+                char tmp[512];
+                strncpy(tmp, files[i], sizeof(tmp));
+                strncpy(files[i], files[j], sizeof(files[i]));
+                strncpy(files[j], tmp, sizeof(files[j]));
+            }
+        }
+    }
+    return n;
+}
+
+static void pick_file_from_cwd(const char* title, const char** exts, int ext_count, char out_path[512]) {
+    char files[128][512];
+    int count = list_files_for_selection(exts, ext_count, files, 128);
+
+    printf("%s\n", title);
+    if (count <= 0) {
+        printf("当前目录没有可选文件，请手动输入路径: ");
+        if (fgets(out_path, 512, stdin) == NULL) {
+            out_path[0] = '\0';
+            return;
+        }
+        trim_whitespace(out_path);
+        return;
+    }
+
+    for (int i = 0; i < count; i++) {
+        printf("%d. %s\n", i + 1, files[i]);
+    }
+    printf("0. 手动输入路径\n");
+    printf("请选择文件编号: ");
+    char sel[32];
+    if (fgets(sel, sizeof(sel), stdin) == NULL) {
+        out_path[0] = '\0';
+        return;
+    }
+    trim_whitespace(sel);
+    int n = atoi(sel);
+    if (n >= 1 && n <= count) {
+        strncpy(out_path, files[n - 1], 511);
+        out_path[511] = '\0';
+        return;
+    }
+
+    printf("请输入文件路径: ");
+    if (fgets(out_path, 512, stdin) == NULL) {
+        out_path[0] = '\0';
+        return;
+    }
+    trim_whitespace(out_path);
+}
+
+int main() {
+    printf("==========================================\n");
+    printf("DecentriLicense C SDK 验证向导\n");
+    printf("==========================================\n");
+    printf("\n");
+
+    while (1) {
+        print_menu();
+        
+        char choice[10];
+        printf("请输入选项 (1-6): ");
+        if (fgets(choice, sizeof(choice), stdin) == NULL) {
+            printf("读取输入失败\n");
+            continue;
+        }
+        
+        trim_whitespace(choice);
+        
+        if (strcmp(choice, "1") == 0) {
+            activate_token_wizard();
+        } else if (strcmp(choice, "2") == 0) {
+            verify_token_wizard();
+        } else if (strcmp(choice, "3") == 0) {
+            accounting_wizard();
+        } else if (strcmp(choice, "4") == 0) {
+            trust_chain_validation_wizard();
+        } else if (strcmp(choice, "5") == 0) {
+            comprehensive_validation_wizard();
+        } else if (strcmp(choice, "6") == 0) {
+            printf("感谢使用 DecentriLicense C SDK 验证向导!\n");
+            break;
+        } else {
+            printf("无效选项，请重新输入。\n");
+        }
+        
+        printf("\n%s\n\n", "--------------------------------------------------");
+    }
+    
+    if (g_client != NULL) {
+        (void)dl_client_shutdown(g_client);
+        dl_client_destroy(g_client);
+        g_client = NULL;
+        g_initialized = 0;
+    }
+    return 0;
+}
+
+void print_menu() {
+    printf("请选择要执行的操作:\n");
+    printf("1. 导入 token(密文/JSON)\n");
+    printf("2. 离线验证\n");
+    printf("3. 激活绑定本机\n");
+    printf("4. 查询状态\n");
+    printf("5. 记录使用量/状态迁移\n");
+    printf("6. 退出\n");
+}
+
+void activate_token_wizard() {
+    printf("\n--- 1) 导入 token(密文/JSON) ---\n");
+
+    char product_key_file[512];
+    const char* exts_pem[] = {".pem"};
+    pick_file_from_cwd("请选择产品公钥文件(含 ROOT_SIGNATURE):", exts_pem, 1, product_key_file);
+    if (strlen(product_key_file) == 0) {
+        printf("产品公钥文件路径不能为空\n");
+        return;
+    }
+
+    char token_file_path[512];
+    const char* exts_token[] = {".txt", ".json"};
+    pick_file_from_cwd("请选择 token 文件:", exts_token, 2, token_file_path);
+    if (strlen(token_file_path) == 0) {
+        printf("token 文件路径不能为空\n");
+        return;
+    }
+
+    size_t pk_len = 0;
+    char* product_public_key = read_text_file_alloc(product_key_file, &pk_len);
+    if (!product_public_key) {
+        printf("无法读取产品公钥文件: %s\n", product_key_file);
+        return;
+    }
+
+    size_t tok_len = 0;
+    char* token_input = read_text_file_alloc(token_file_path, &tok_len);
+    if (!token_input) {
+        printf("无法读取 token 文件: %s\n", token_file_path);
+        free(product_public_key);
+        return;
+    }
+
+    if (g_client != NULL) {
+        (void)dl_client_shutdown(g_client);
+        dl_client_destroy(g_client);
+        g_client = NULL;
+        g_initialized = 0;
+    }
+
+    g_client = dl_client_create();
+    if (g_client == NULL) {
+        printf("创建客户端失败\n");
+        free(product_public_key);
+        free(token_input);
+        return;
+    }
+
+    DL_ClientConfig cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.license_code = "";
+    cfg.udp_port = 0;
+    cfg.tcp_port = 0;
+    cfg.registry_server_url = "";
+
+    DL_ErrorCode rc = dl_client_initialize(g_client, &cfg);
+    if (rc != DL_ERROR_SUCCESS) {
+        printf("初始化客户端失败: %d\n", rc);
+        dl_client_destroy(g_client);
+        g_client = NULL;
+        free(product_public_key);
+        free(token_input);
+        return;
+    }
+
+    rc = dl_client_set_product_public_key(g_client, product_public_key);
+    if (rc != DL_ERROR_SUCCESS) {
+        printf("设置产品公钥失败: %d\n", rc);
+        dl_client_destroy(g_client);
+        g_client = NULL;
+        free(product_public_key);
+        free(token_input);
+        return;
+    }
+
+    rc = dl_client_import_token(g_client, token_input);
+    if (rc != DL_ERROR_SUCCESS) {
+        printf("导入 token 失败: %d\n", rc);
+        dl_client_destroy(g_client);
+        g_client = NULL;
+        free(product_public_key);
+        free(token_input);
+        return;
+    }
+
+    g_initialized = 1;
+    printf("导入成功。产品公钥预览: %.120s...\n", product_public_key);
+    printf("token 预览: %.120s...\n", token_input);
+
+    free(product_public_key);
+    free(token_input);
+}
+
+void verify_token_wizard() {
+    printf("\n--- 2) 离线验证 ---\n");
+    if (!g_initialized || g_client == NULL) {
+        printf("请先执行 1) 导入 token\n");
+        return;
+    }
+
+    DL_VerificationResult vr;
+    memset(&vr, 0, sizeof(vr));
+    DL_ErrorCode rc = dl_client_offline_verify_current_token(g_client, &vr);
+    if (rc != DL_ERROR_SUCCESS) {
+        printf("离线验证失败: %d\n", rc);
+        return;
+    }
+
+    printf("验证结果: %s\n", vr.valid ? "✓ 通过" : "✗ 失败");
+    if (!vr.valid) {
+        printf("错误信息: %s\n", vr.error_message);
+    }
+}
+
+void accounting_wizard() {
+    printf("\n--- 3) 激活绑定本机 ---\n");
+    if (!g_initialized || g_client == NULL) {
+        printf("请先执行 1) 导入 token\n");
+        return;
+    }
+
+    DL_VerificationResult vr;
+    memset(&vr, 0, sizeof(vr));
+    DL_ErrorCode rc = dl_client_activate_bind_device(g_client, &vr);
+    if (rc != DL_ERROR_SUCCESS) {
+        printf("激活绑定失败: %d\n", rc);
+        return;
+    }
+
+    printf("激活绑定结果: %s\n", vr.valid ? "✓ 成功" : "✗ 失败");
+    if (!vr.valid) {
+        printf("错误信息: %s\n", vr.error_message);
+    }
+}
+
+void trust_chain_validation_wizard() {
+    printf("\n--- 4) 查询状态 ---\n");
+    if (!g_initialized || g_client == NULL) {
+        printf("请先执行 1) 导入 token\n");
+        return;
+    }
+
+    DL_StatusResult status;
+    memset(&status, 0, sizeof(status));
+    DL_ErrorCode rc = dl_client_get_status(g_client, &status);
+    if (rc != DL_ERROR_SUCCESS) {
+        printf("查询状态失败: %d\n", rc);
+        return;
+    }
+
+    printf("has_token: %d\n", status.has_token);
+    printf("is_activated: %d\n", status.is_activated);
+    printf("state_index: %llu\n", (unsigned long long)status.state_index);
+    printf("token_id: %s\n", status.token_id);
+    printf("holder_device_id: %s\n", status.holder_device_id);
+    printf("app_id: %s\n", status.app_id);
+    printf("license_code: %s\n", status.license_code);
+}
+
+void comprehensive_validation_wizard() {
+    printf("\n--- 5) 记录使用量/状态迁移 ---\n");
+    if (!g_initialized || g_client == NULL) {
+        printf("请先执行 1) 导入 token\n");
+        return;
+    }
+
+    char payload[2048];
+    printf("请输入 new_state_payload_json(单行，留空默认 {}): ");
+    if (fgets(payload, sizeof(payload), stdin) == NULL) {
+        strcpy(payload, "{}");
+    }
+    trim_whitespace(payload);
+    if (strlen(payload) == 0) {
+        strcpy(payload, "{}");
+    }
+
+    DL_VerificationResult vr;
+    memset(&vr, 0, sizeof(vr));
+    DL_ErrorCode rc = dl_client_record_usage(g_client, payload, &vr);
+    if (rc != DL_ERROR_SUCCESS) {
+        printf("记录使用量失败: %d\n", rc);
+        return;
+    }
+
+    printf("记录使用量结果: %s\n", vr.valid ? "✓ 成功" : "✗ 失败");
+    if (!vr.valid) {
+        printf("错误信息: %s\n", vr.error_message);
+    }
+}
+
+void trim_whitespace(char* str) {
+    char* end;
+    
+    // 去除开头的空白字符
+    while (*str == ' ' || *str == '\t' || *str == '\r' || *str == '\n') {
+        str++;
+    }
+    
+    // 如果字符串为空，则返回
+    if (*str == '\0') {
+        return;
+    }
+    
+    // 去除结尾的空白字符
+    end = str + strlen(str) - 1;
+    while (end > str && (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')) {
+        end--;
+    }
+    
+    // 添加终止符
+    *(end + 1) = '\0';
+}
+
+void get_current_time_str(char* buffer, size_t buffer_size) {
+    time_t now = time(NULL);
+    struct tm* local_time = localtime(&now);
+    strftime(buffer, buffer_size, "%Y-%m-%d %H:%M:%S", local_time);
+}

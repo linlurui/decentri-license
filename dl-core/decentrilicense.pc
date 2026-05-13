@@ -1,0 +1,10 @@
+prefix=/Volumes/workspace/project/dl-issuer/dl-core/build
+exec_prefix=${prefix}
+libdir=${exec_prefix}
+includedir=/Volumes/workspace/project/dl-issuer/dl-core/include
+
+Name: decentrilicense
+Description: DecentriLicense core library
+Version: 1.0.0
+Libs: -L${libdir} -ldecentrilicense -Wl,-rpath,${libdir}
+Cflags: -I${includedir}

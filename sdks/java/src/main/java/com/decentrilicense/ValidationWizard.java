@@ -616,18 +616,50 @@ public class ValidationWizard {
                 return;
             }
 
-            // Note: Java SDK may not support verifying non-current tokens directly
-            System.out.println("💡 Java SDK 当前版本可能需要重新导入令牌才能验证");
-            System.out.println("💡 显示已保存的状态信息:");
-
-            Path stateFile = stateDir.resolve(selectedLicenseCode).resolve("current_state.json");
-            if (Files.exists(stateFile)) {
-                System.out.println("\n🎫 令牌信息 (从状态文件读取):");
-                System.out.println("   许可证代码: " + selectedLicenseCode);
-                System.out.println("   状态文件: " + stateFile);
-                System.out.println("   文件大小: " + Files.size(stateFile) + " 字节");
+            // 设置产品公钥（验证前必须设置）
+            String productKeyPath = selectedProductKeyPath;
+            if (productKeyPath == null || productKeyPath.trim().isEmpty()) {
+                List<String> keys = findAllProductKeys();
+                if (!keys.isEmpty()) {
+                    productKeyPath = keys.get(0);
+                }
+            }
+            if (productKeyPath != null && !productKeyPath.trim().isEmpty()) {
+                try {
+                    String productKeyData = new String(Files.readAllBytes(Paths.get(productKeyPath)));
+                    client.setProductPublicKey(productKeyData);
+                    System.out.println("✅ 产品公钥设置成功");
+                } catch (Exception e) {
+                    System.out.println("❌ 设置产品公钥失败: " + e.getMessage());
+                    return;
+                }
             } else {
-                System.out.println("❌ 读取状态文件失败");
+                System.out.println("❌ 未找到产品公钥文件，无法验证");
+                return;
+            }
+
+            // 验证令牌
+            try {
+                com.decentrilicense.VerificationResult result = client.offlineVerifyCurrentToken();
+                if (result.isValid()) {
+                    System.out.println("✅ 令牌验证成功");
+                } else {
+                    System.out.println("❌ 令牌验证失败: " + result.getErrorMessage());
+                }
+
+                // 显示令牌信息
+                try {
+                    com.decentrilicense.StatusResult status = client.getStatus();
+                    if (status.hasToken()) {
+                        System.out.println("\n🎫 令牌信息:");
+                        System.out.println("   令牌ID: " + status.getTokenId());
+                        System.out.println("   许可证代码: " + status.getLicenseCode());
+                        System.out.println("   应用ID: " + status.getAppId());
+                        System.out.println("   持有设备ID: " + status.getHolderDeviceId());
+                    }
+                } catch (Exception ignored) {}
+            } catch (Exception e) {
+                System.out.println("❌ 验证失败: " + e.getMessage());
             }
         } catch (NumberFormatException e) {
             System.out.println("❌ 无效的选择");

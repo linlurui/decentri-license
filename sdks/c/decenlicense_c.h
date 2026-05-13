@@ -30,12 +30,20 @@ typedef struct {
     DL_Token* token;
 } DL_ActivationResult;
 
+// Connection mode
+typedef enum {
+    DL_CONNECTION_MODE_WAN_REGISTRY = 0,  // 广域网注册中心优先
+    DL_CONNECTION_MODE_LAN_P2P = 1,       // 局域网P2P
+    DL_CONNECTION_MODE_OFFLINE = 2        // 离线模式
+} DL_ConnectionMode;
+
 // Client configuration
 typedef struct {
-    const char* license_code;
-    uint16_t udp_port;
-    uint16_t tcp_port;
-    const char* registry_server_url;
+    const char* license_code;             // License identifier for P2P conflict detection
+    DL_ConnectionMode preferred_mode;     // Preferred connection mode
+    uint16_t udp_port;                    // UDP port for P2P discovery (0 = use default 13325)
+    uint16_t tcp_port;                    // TCP port for P2P communication (0 = use default 23325)
+    const char* registry_server_url;     // Optional WAN coordination server
 } DL_ClientConfig;
 
 // Error codes
@@ -56,8 +64,8 @@ struct DL_Token {
     int64_t issue_time;
     int64_t expire_time;
     char signature[512];
-    char license_public_key[1024];
-    char root_signature[512];
+    char license_public_key[1024];  // Added for trust chain verification
+    char root_signature[512];       // Added for trust chain verification
     char app_id[128];               // Increased for consistency
     char license_code[128];         // Increased for consistency
 };
@@ -109,8 +117,20 @@ DL_ErrorCode dl_client_activate_bind_device(DL_Client* client, DL_VerificationRe
 
 DL_ErrorCode dl_client_record_usage(DL_Client* client, const char* new_state_payload_json, DL_VerificationResult* result);
 
+// Get the plaintext state_payload (decrypted from SEK if applicable)
+DL_ErrorCode dl_client_get_state_payload(DL_Client* client, char* out_payload, size_t out_payload_size);
+
+// Add a recovery channel (password/mnemonic) to wrap SEK
+DL_ErrorCode dl_client_add_recovery_channel(DL_Client* client, const char* password, DL_VerificationResult* result);
+
+// Remove the recovery channel (clears encrypted_sek_password)
+DL_ErrorCode dl_client_remove_recovery_channel(DL_Client* client, DL_VerificationResult* result);
+
 // Activate license
 DL_ErrorCode dl_client_activate(DL_Client* client, DL_ActivationResult* result);
+
+// Activate license with offline token string
+DL_ErrorCode dl_client_activate_with_token(DL_Client* client, const char* token_string, DL_ActivationResult* result);
 
 // Get current token
 DL_ErrorCode dl_client_get_current_token(DL_Client* client, DL_Token* token);
@@ -125,7 +145,7 @@ DL_ErrorCode dl_client_get_device_id(DL_Client* client, char* device_id, size_t 
 DL_DeviceState dl_client_get_device_state(DL_Client* client);
 
 // Verify token using trust chain
-DL_ErrorCode dl_client_verify_token_trust_chain(DL_Client* client, const DL_Token* token, DL_VerificationResult* result);
+DL_ErrorCode dl_client_verify_token_trust_chain(DL_Client* client, const DL_Token* token, const char* root_public_key_pem, DL_VerificationResult* result);
 
 // Shutdown the client
 DL_ErrorCode dl_client_shutdown(DL_Client* client);

@@ -1,20 +1,50 @@
 import ctypes
 import os
+import sys
 
 
 def _repo_root():
+    """Walk up from this file to find the dl-issuer repo root.
+
+    Looks for dl-core/ directory as the marker.
+    """
     here = os.path.abspath(os.path.dirname(__file__))
+    # Try relative path first (sdk/python/decenlicense -> dl-issuer)
+    candidate = os.path.abspath(os.path.join(here, "..", "..", ".."))
+    if os.path.isdir(os.path.join(candidate, "dl-core")):
+        return candidate
+    # Walk up looking for dl-core
+    path = here
+    for _ in range(10):
+        parent = os.path.dirname(path)
+        if parent == path:
+            break
+        if os.path.isdir(os.path.join(parent, "dl-core")):
+            return parent
+        path = parent
+    # Fallback to original relative path
     return os.path.abspath(os.path.join(here, "..", "..", ".."))
+
+
+def _platform_lib_name():
+    """Return platform-specific library filename."""
+    if sys.platform == "darwin":
+        return "libdecentrilicense.dylib"
+    elif sys.platform == "win32":
+        return "decentrilicense.dll"
+    else:
+        return "libdecentrilicense.so"
 
 
 def _candidate_library_paths():
     root = _repo_root()
+    lib_name = _platform_lib_name()
     return [
-        os.path.join(root, "dl-core", "build", "libdecentrilicense.dylib"),
-        os.path.join(root, "dl-core", "build", "libdecentrilicense.so"),
-        os.path.join(root, "build", "libdecentrilicense.so"),
-        os.path.join(root, "sdks", "cpp", "lib", "libdecentrilicense.dylib"),
-        os.path.join(root, "sdks", "cpp", "lib", "libdecentrilicense.so"),
+        os.path.join(root, "dl-core", "build", lib_name),
+        os.path.join(root, "build", lib_name),
+        os.path.join(root, "sdks", "cpp", "lib", lib_name),
+        # Also check next to this package (for pip-installed scenarios)
+        os.path.join(os.path.abspath(os.path.dirname(__file__)), lib_name),
     ]
 
 
@@ -123,12 +153,16 @@ if _lib is None:
     dl_client_activate_bind_device = _unavailable
     dl_client_record_usage = _unavailable
     dl_client_activate = _unavailable
+    dl_client_activate_with_token = _unavailable
     dl_client_get_current_token = _unavailable
     dl_client_is_activated = _unavailable
     dl_client_get_device_id = _unavailable
     dl_client_get_device_state = _unavailable
     dl_client_verify_token_trust_chain = _unavailable
     dl_client_shutdown = _unavailable
+    dl_client_get_state_payload = _unavailable
+    dl_client_add_recovery_channel = _unavailable
+    dl_client_remove_recovery_channel = _unavailable
 else:
     dl_client_create = _lib.dl_client_create
     dl_client_create.restype = ctypes.c_void_p
@@ -201,10 +235,26 @@ else:
     dl_client_get_device_state.argtypes = [ctypes.c_void_p]
     dl_client_get_device_state.restype = ctypes.c_int
 
+    dl_client_activate_with_token = _lib.dl_client_activate_with_token
+    dl_client_activate_with_token.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(DL_ActivationResult)]
+    dl_client_activate_with_token.restype = ctypes.c_int
+
     dl_client_verify_token_trust_chain = _lib.dl_client_verify_token_trust_chain
-    dl_client_verify_token_trust_chain.argtypes = [ctypes.c_void_p, ctypes.POINTER(DL_Token), ctypes.POINTER(DL_VerificationResult)]
+    dl_client_verify_token_trust_chain.argtypes = [ctypes.c_void_p, ctypes.POINTER(DL_Token), ctypes.c_char_p, ctypes.POINTER(DL_VerificationResult)]
     dl_client_verify_token_trust_chain.restype = ctypes.c_int
 
     dl_client_shutdown = _lib.dl_client_shutdown
     dl_client_shutdown.argtypes = [ctypes.c_void_p]
     dl_client_shutdown.restype = ctypes.c_int
+
+    dl_client_get_state_payload = _lib.dl_client_get_state_payload
+    dl_client_get_state_payload.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
+    dl_client_get_state_payload.restype = ctypes.c_int
+
+    dl_client_add_recovery_channel = _lib.dl_client_add_recovery_channel
+    dl_client_add_recovery_channel.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(DL_VerificationResult)]
+    dl_client_add_recovery_channel.restype = ctypes.c_int
+
+    dl_client_remove_recovery_channel = _lib.dl_client_remove_recovery_channel
+    dl_client_remove_recovery_channel.argtypes = [ctypes.c_void_p, ctypes.POINTER(DL_VerificationResult)]
+    dl_client_remove_recovery_channel.restype = ctypes.c_int

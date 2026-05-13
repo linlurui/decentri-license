@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/master.swiftdeps"
+  },
+  "/Volumes/workspace/project/dl-issuer/sdks/swift/Sources/ValidationWizard/main.swift": {
+    "dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.d",
+    "object": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.swift.o",
+    "swiftmodule": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.swiftdeps",
+    "diagnostics": "/Volumes/workspace/project/dl-issuer/sdks/swift/.build/arm64-apple-macosx/debug/ValidationWizard.build/main.dia"
+  }
+}

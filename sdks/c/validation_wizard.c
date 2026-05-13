@@ -1620,6 +1620,68 @@ void comprehensive_validation_wizard() {
     }
 }
 
+void recovery_channel_wizard() {
+    printf("\n🔑 恢复通道管理\n");
+    printf("----------\n");
+
+    DL_Client* client = get_or_create_client();
+    if (client == NULL) {
+        printf("获取客户端失败\n");
+        return;
+    }
+
+    int activated = dl_client_is_activated(client);
+    if (!activated) {
+        printf("❌ 请先激活令牌再管理恢复通道\n");
+        return;
+    }
+
+    printf("请选择操作:\n");
+    printf("1. 添加恢复通道 (设置密码)\n");
+    printf("2. 移除恢复通道\n");
+    printf("0. 返回\n");
+    printf("\n请选择 (0-2): ");
+
+    int choice;
+    if (scanf("%d", &choice) != 1) {
+        while (getchar() != '\n');
+        return;
+    }
+    while (getchar() != '\n');
+
+    if (choice == 1) {
+        printf("请输入恢复密码: ");
+        char password[256] = {0};
+        if (fgets(password, sizeof(password), stdin) == NULL) return;
+        // Trim newline
+        size_t len = strlen(password);
+        if (len > 0 && password[len-1] == '\n') password[len-1] = '\0';
+        if (strlen(password) == 0) {
+            printf("❌ 密码不能为空\n");
+            return;
+        }
+        DL_VerificationResult vr = {0};
+        DL_ErrorCode rc = dl_client_add_recovery_channel(client, password, &vr);
+        if (rc != DL_ERROR_SUCCESS) {
+            printf("❌ 添加失败 (error code: %d)\n", rc);
+        } else if (vr.valid) {
+            printf("✅ 恢复通道添加成功\n");
+        } else {
+            printf("❌ 添加失败: %s\n", vr.error_message);
+        }
+    } else if (choice == 2) {
+        DL_VerificationResult vr = {0};
+        DL_ErrorCode rc = dl_client_remove_recovery_channel(client, &vr);
+        if (rc != DL_ERROR_SUCCESS) {
+            printf("❌ 移除失败 (error code: %d)\n", rc);
+        } else if (vr.valid) {
+            printf("✅ 恢复通道已移除\n");
+        } else {
+            printf("❌ 移除失败: %s\n", vr.error_message);
+        }
+    }
+}
+
 int main() {
     printf("==========================================\n");
     printf("DecentriLicense C SDK 验证向导\n");
@@ -1637,8 +1699,9 @@ int main() {
         printf("4. 📊 记账信息\n");
         printf("5. 🔗 信任链验证\n");
         printf("6. 🎯 综合验证\n");
-        printf("7. 🚪 退出\n");
-        printf("请输入选项 (0-7): ");
+        printf("7. � 恢复通道管理（密码/助记词）\n");
+        printf("8. �� 退出\n");
+        printf("请输入选项 (0-8): ");
 
         int choice;
         if (scanf("%d", &choice) != 1) {
@@ -1671,6 +1734,9 @@ int main() {
                 comprehensive_validation_wizard();
                 break;
             case 7:
+                recovery_channel_wizard();
+                break;
+            case 8:
                 printf("感谢使用 DecentriLicense C SDK 验证向导!\n");
                 return 0;
             default:

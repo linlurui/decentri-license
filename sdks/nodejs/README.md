@@ -18,7 +18,7 @@ This SDK provides Node.js bindings for the DecentriLicense licensing system.
 
 2. If you encounter library loading issues, you may need to set the library path:
    ```bash
-   export DYLD_LIBRARY_PATH=/path/to/decentri-license/dl-core/build:$DYLD_LIBRARY_PATH
+   export DYLD_LIBRARY_PATH=/path/to/decentri-license-issuer/dl-core/build:$DYLD_LIBRARY_PATH
    ```
 
 ## Usage
@@ -62,7 +62,7 @@ client.shutdown();
 
 ## Example
 
-See [example.js](file:///Volumes/project/decentri-license/sdks/nodejs/example.js) for a complete example of how to use the SDK.
+See [example.js](file:///Volumes/project/decentri-license-issuer/sdks/nodejs/example.js) for a complete example of how to use the SDK.
 
 ## API Reference
 
@@ -145,7 +145,7 @@ If you encounter errors like "Library not loaded", make sure the dl-core library
 
 2. Set the library path:
    ```bash
-   export DYLD_LIBRARY_PATH=/path/to/decentri-license/dl-core/build:$DYLD_LIBRARY_PATH
+   export DYLD_LIBRARY_PATH=/path/to/decentri-license-issuer/dl-core/build:$DYLD_LIBRARY_PATH
    ```
 
 ## License

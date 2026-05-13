@@ -26,10 +26,18 @@ public:
     // 保存完整状态链（首次或全量备份）
     bool saveFullChain(const std::string& license_id, 
                        const std::vector<Token>& chain);
+
+    // 保存完整状态链（使用预构建的JSON，state_payload可已加密）
+    bool saveFullChainJSON(const std::string& license_id,
+                           const std::vector<std::string>& chain_json);
     
     // 追加一个状态到链尾（高效，仅追加日志）
     bool appendState(const std::string& license_id, 
                      const Token& new_state);
+
+    // 追加一个状态到链尾（使用预构建的JSON，state_payload可已加密）
+    bool appendStateJSON(const std::string& license_id,
+                         const std::string& token_json);
     
     // 从持久化存储加载完整状态链
     std::vector<Token> loadChain(const std::string& license_id);

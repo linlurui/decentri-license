@@ -117,6 +117,15 @@ DL_ErrorCode dl_client_activate_bind_device(DL_Client* client, DL_VerificationRe
 
 DL_ErrorCode dl_client_record_usage(DL_Client* client, const char* new_state_payload_json, DL_VerificationResult* result);
 
+// Get the plaintext state_payload (decrypted from SEK if applicable)
+DL_ErrorCode dl_client_get_state_payload(DL_Client* client, char* out_payload, size_t out_payload_size);
+
+// Add a recovery channel (password/mnemonic) to wrap SEK
+DL_ErrorCode dl_client_add_recovery_channel(DL_Client* client, const char* password, DL_VerificationResult* result);
+
+// Remove the recovery channel (clears encrypted_sek_password)
+DL_ErrorCode dl_client_remove_recovery_channel(DL_Client* client, DL_VerificationResult* result);
+
 // Activate license
 DL_ErrorCode dl_client_activate(DL_Client* client, DL_ActivationResult* result);
 

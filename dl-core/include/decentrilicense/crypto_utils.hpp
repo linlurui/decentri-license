@@ -177,6 +177,16 @@ public:
     static std::string encrypt_token_aes256_gcm(const std::string& token_json, const std::string& product_public_key_file_content);
     static std::string decrypt_token_aes256_gcm(const std::string& encrypted_token, const std::string& product_public_key_file_content);
 
+    // Raw AES-256-GCM encrypt/decrypt using a direct 32-byte key (for SEK operations)
+    static std::string aes_encrypt_raw(const std::string& plaintext, const std::array<uint8_t, 32>& key);
+    static std::string aes_decrypt_raw(const std::string& ciphertext_b64, const std::array<uint8_t, 32>& key);
+
+    // Derive AES-256 key from a PEM private key (SHA-256 of the PEM content)
+    static std::array<uint8_t, 32> derive_key_from_pem(const std::string& pem_content);
+
+    // Generate a random 32-byte SEK (State Encryption Key)
+    static std::array<uint8_t, 32> generate_sek();
+
 private:
     static void initialize_openssl();
     static void cleanup_openssl();

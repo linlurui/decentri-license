@@ -1447,6 +1447,61 @@ void comprehensive_validation_wizard() {
     }
 }
 
+void recovery_channel_wizard() {
+    cout << endl << "🔑 恢复通道管理" << endl;
+    cout << "----------" << endl;
+
+    DL_Client* client = get_or_create_client();
+    if (client == nullptr) {
+        cout << "获取客户端失败" << endl;
+        return;
+    }
+
+    int activated = dl_client_is_activated(client);
+    if (!activated) {
+        cout << "❌ 请先激活令牌再管理恢复通道" << endl;
+        return;
+    }
+
+    cout << "请选择操作:" << endl;
+    cout << "1. 添加恢复通道 (设置密码)" << endl;
+    cout << "2. 移除恢复通道" << endl;
+    cout << "0. 返回" << endl;
+    cout << endl << "请选择 (0-2): ";
+
+    string input = get_input_line();
+    int choice = -1;
+    try { choice = stoi(input); } catch (...) { return; }
+
+    if (choice == 1) {
+        cout << "请输入恢复密码: ";
+        string password = get_input_line();
+        if (password.empty()) {
+            cout << "❌ 密码不能为空" << endl;
+            return;
+        }
+        DL_VerificationResult vr = {0};
+        DL_ErrorCode rc = dl_client_add_recovery_channel(client, password.c_str(), &vr);
+        if (rc != DL_ERROR_SUCCESS) {
+            cout << "❌ 添加失败 (error code: " << rc << ")" << endl;
+        } else if (vr.valid) {
+            cout << "✅ 恢复通道添加成功" << endl;
+        } else {
+            cout << "❌ 添加失败: " << vr.error_message << endl;
+        }
+    } else if (choice == 2) {
+        DL_VerificationResult vr = {0};
+        DL_ErrorCode rc = dl_client_remove_recovery_channel(client, &vr);
+        if (rc != DL_ERROR_SUCCESS) {
+            cout << "❌ 移除失败 (error code: " << rc << ")" << endl;
+        } else if (vr.valid) {
+            cout << "✅ 恢复通道已移除" << endl;
+        } else {
+            cout << "❌ 移除失败: " << vr.error_message << endl;
+        }
+    }
+}
+
 int main() {
     cout << "==========================================" << endl;
     cout << "DecentriLicense C++ SDK 验证向导" << endl;
@@ -1465,8 +1520,9 @@ int main() {
         cout << "4. 📊 记账信息" << endl;
         cout << "5. 🔗 信任链验证" << endl;
         cout << "6. 🎯 综合验证" << endl;
-        cout << "7. 🚪 退出" << endl;
-        cout << "请输入选项 (0-7): ";
+        cout << "7. 🔐 恢复通道管理（密码/助记词）" << endl;
+        cout << "8. 🚪 退出" << endl;
+        cout << "请输入选项 (0-8): ";
 
         string input = get_input_line();
         int choice = -1;
@@ -1500,6 +1556,9 @@ int main() {
                 comprehensive_validation_wizard();
                 break;
             case 7:
+                recovery_channel_wizard();
+                break;
+            case 8:
                 cout << "感谢使用 DecentriLicense C++ SDK 验证向导!" << endl;
                 return 0;
             default:

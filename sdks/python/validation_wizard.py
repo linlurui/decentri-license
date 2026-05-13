@@ -472,6 +472,23 @@ def verify_activated_token_wizard():
     if client is None:
         return
 
+    # 设置产品公钥（验证前必须设置）
+    product_key_path = selected_product_key_path
+    if not product_key_path:
+        product_key_path = find_product_public_key()
+    if product_key_path:
+        try:
+            with open(product_key_path, 'r') as f:
+                product_key_data = f.read()
+            client.set_product_public_key(product_key_data)
+            print("✅ 产品公钥设置成功")
+        except Exception as e:
+            print(f"❌ 设置产品公钥失败: {e}")
+            return
+    else:
+        print("❌ 未找到产品公钥文件，无法验证")
+        return
+
     # 检查选择的令牌是否是当前激活的令牌
     try:
         status = client.get_status()
@@ -1359,6 +1376,59 @@ def comprehensive_validation_wizard():
         print("❌ 多项检查失败，请检查系统配置")
 
 
+def recovery_channel_wizard():
+    """恢复通道管理向导"""
+    print("\n🔑 恢复通道管理")
+    print("-" * 50)
+
+    client = get_or_create_client()
+    if client is None:
+        return
+
+    if not g_initialized:
+        print("❌ 请先初始化客户端并激活令牌")
+        return
+
+    try:
+        activated = client.is_activated()
+    except:
+        activated = False
+
+    if not activated:
+        print("❌ 请先激活令牌再管理恢复通道")
+        return
+
+    print("请选择操作:")
+    print("1. 添加恢复通道 (设置密码)")
+    print("2. 移除恢复通道")
+    print("0. 返回")
+
+    choice = input("\n请选择 (0-2): ").strip()
+
+    if choice == "1":
+        password = input("请输入恢复密码: ").strip()
+        if not password:
+            print("❌ 密码不能为空")
+            return
+        try:
+            result = client.add_recovery_channel(password)
+            if result['valid']:
+                print("✅ 恢复通道添加成功")
+            else:
+                print(f"❌ 添加失败: {result.get('error_message', 'Unknown error')}")
+        except Exception as e:
+            print(f"❌ 添加失败: {e}")
+    elif choice == "2":
+        try:
+            result = client.remove_recovery_channel()
+            if result['valid']:
+                print("✅ 恢复通道已移除")
+            else:
+                print(f"❌ 移除失败: {result.get('error_message', 'Unknown error')}")
+        except Exception as e:
+            print(f"❌ 移除失败: {e}")
+
+
 def main():
     """主程序"""
     try:
@@ -1375,9 +1445,10 @@ def main():
             print("4. 📊 记账信息")
             print("5. 🔗 信任链验证")
             print("6. 🎯 综合验证")
-            print("7. 🚪 退出")
+            print("7. � 恢复通道管理（密码/助记词）")
+            print("8. �� 退出")
 
-            choice = input("请输入选项 (0-7): ").strip()
+            choice = input("请输入选项 (0-8): ").strip()
             print()
 
             if choice == "0":
@@ -1395,6 +1466,8 @@ def main():
             elif choice == "6":
                 comprehensive_validation_wizard()
             elif choice == "7":
+                recovery_channel_wizard()
+            elif choice == "8":
                 print("感谢使用 DecentriLicense Python SDK 验证向导!")
                 break
             else:

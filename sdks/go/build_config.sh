@@ -11,7 +11,7 @@ CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 方法1: 优先使用一键打包程序设置的路径（如果有）
 # AUTO_REPLACE_DYLIB_PATH_START
-export DYLIB_PATH_OVERRIDE="/Volumes/project/decentri-license/dl-core/build"
+export DYLIB_PATH_OVERRIDE="/Volumes/project/decentri-license-issuer/dl-core/build"
 # AUTO_REPLACE_DYLIB_PATH_END
 
 # 方法2: 检查环境变量（签发程序可以设置）
