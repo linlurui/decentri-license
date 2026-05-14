@@ -114,6 +114,9 @@ private:
 #elif _WIN32
     bool store_key_windows(const std::string& key_data);
     std::string retrieve_key_windows() const;
+#elif __ANDROID__
+    bool store_key_android(const std::string& key_data);
+    std::string retrieve_key_android() const;
 #elif __linux__
     bool store_key_linux(const std::string& key_data);
     std::string retrieve_key_linux() const;

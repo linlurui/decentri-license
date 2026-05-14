@@ -18,18 +18,25 @@ find_package(CURL REQUIRED)
 
 # Platform-specific package finding
 if(APPLE)
-    # Find Security framework for macOS
+    # Find Security framework for macOS / iOS (header available on both)
     find_library(SECURITY_FRAMEWORK Security)
 elseif(WIN32)
     # Windows libraries are handled later
+elseif(ANDROID)
+    # Android: no libsecret; secure storage stubs only
 elseif(UNIX AND NOT APPLE)
-    # Find libsecret for Linux
+    # Find libsecret for desktop Linux
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBSECRET REQUIRED libsecret-1)
 endif()
 
-# Define the library
-add_library(decentrilicense SHARED
+# Define the library (iOS forces STATIC because dynamic libs require code signing in app bundle)
+if(IOS OR (CMAKE_SYSTEM_NAME STREQUAL "iOS"))
+    set(DL_LIB_TYPE STATIC)
+else()
+    set(DL_LIB_TYPE SHARED)
+endif()
+add_library(decentrilicense ${DL_LIB_TYPE}
     src/crypto_utils.cpp
     src/decentrilicense_client.cpp
     src/election_manager.cpp
@@ -63,9 +70,11 @@ target_link_libraries(decentrilicense
 
 # Platform-specific linking
 if(APPLE)
-    target_link_libraries(decentrilicense PRIVATE ${SECURITY_FRAMEWORK})
+    target_link_libraries(decentrilicense PRIVATE ${SECURITY_FRAMEWORK} z)
 elseif(WIN32)
     target_link_libraries(decentrilicense PRIVATE crypt32)
+elseif(ANDROID)
+    target_link_libraries(decentrilicense PRIVATE log z)
 elseif(UNIX AND NOT APPLE)
     target_link_libraries(decentrilicense PRIVATE ${LIBSECRET_LIBRARIES})
     target_include_directories(decentrilicense PRIVATE ${LIBSECRET_INCLUDE_DIRS})

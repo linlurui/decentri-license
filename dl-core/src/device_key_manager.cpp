@@ -112,6 +112,8 @@ bool DeviceKeyManager::store_device_private_key_securely(const std::string& priv
     return store_key_macos(private_key_pem);
 #elif _WIN32
     return store_key_windows(private_key_pem);
+#elif __ANDROID__
+    return store_key_android(private_key_pem);
 #elif __linux__
     return store_key_linux(private_key_pem);
 #else
@@ -127,6 +129,8 @@ std::string DeviceKeyManager::retrieve_device_private_key_securely() const {
     return retrieve_key_macos();
 #elif _WIN32
     return retrieve_key_windows();
+#elif __ANDROID__
+    return retrieve_key_android();
 #elif __linux__
     return retrieve_key_linux();
 #else
@@ -188,6 +192,17 @@ std::string DeviceKeyManager::retrieve_key_windows() const {
     // Implementation for Windows using Data Protection API (DPAPI)
     // This is a simplified placeholder - a real implementation would use Windows Credential Manager
     std::cerr << "Windows key retrieval not implemented" << std::endl;
+    return "";
+}
+#elif __ANDROID__
+bool DeviceKeyManager::store_key_android(const std::string& key_data) {
+    // TODO: Android Keystore via JNI. Placeholder fallback (no secure storage).
+    std::cerr << "Android key storage not implemented (stub)" << std::endl;
+    return false;
+}
+
+std::string DeviceKeyManager::retrieve_key_android() const {
+    std::cerr << "Android key retrieval not implemented (stub)" << std::endl;
     return "";
 }
 #elif __linux__

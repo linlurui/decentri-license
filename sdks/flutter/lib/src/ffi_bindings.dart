@@ -214,7 +214,13 @@ class DecentriLicenseNative {
   DecentriLicenseNative() : _lib = _loadLibrary();
 
   static DynamicLibrary _loadLibrary() {
-    if (Platform.isMacOS) {
+    if (Platform.isIOS) {
+      // iOS 链接的是静态库，符号已嵌入主二进制
+      return DynamicLibrary.process();
+    } else if (Platform.isAndroid) {
+      // Android 把 .so 放到 jniLibs/<ABI>/，运行时按名加载
+      return DynamicLibrary.open('libdecentrilicense.so');
+    } else if (Platform.isMacOS) {
       // @executable_path is resolved by macOS dyld to the dir of the main executable
       return DynamicLibrary.open('@executable_path/libdecentrilicense.dylib');
     } else if (Platform.isLinux) {
